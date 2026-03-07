@@ -1,0 +1,17 @@
+# Env files
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+.zip
+
+# Node
+node_modules
+dist
+build
+.vite
+frontend/dist
+frontend/dist.zip
+backend/node_modules
+frontend/node_modules
