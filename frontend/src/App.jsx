@@ -17,6 +17,8 @@ export default function App() {
     accessToken,
     adminRole,
     adminBarbeariaId,
+    adminBarbeariaNome,
+    adminBarbeariaLogoUrl,
     loading: loadingAuth,
     erro: authError,
     login,
@@ -75,17 +77,31 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
         <div className="w-full max-w-3xl space-y-6">
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-50">Área administrativa</h1>
-              <p className="text-sm text-slate-400 mt-1">
-                Você está autenticado como{" "}
-                <span className="font-medium text-slate-200">{user?.email}</span> (
-                <span className="font-medium text-slate-200">{adminRole || "—"}</span>).
-              </p>
+          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              {adminBarbeariaLogoUrl ? (
+                <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={adminBarbeariaLogoUrl}
+                    alt={adminBarbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : null}
+
+              <div>
+                <h1 className="text-2xl font-bold text-slate-50">
+                  {adminBarbeariaNome || "Área administrativa"}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">
+                  Você está autenticado como{" "}
+                  <span className="font-medium text-slate-200">{user?.email}</span> (
+                  <span className="font-medium text-slate-200">{adminRole || "—"}</span>).
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-start sm:items-end gap-2">
               <button
                 onClick={async () => {
                   await logout();
@@ -196,7 +212,8 @@ export default function App() {
       <AdminAgenda
         profissionais={[]}
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
         onIrPacotes={() => setModoAdmin("pacotes")}
@@ -210,6 +227,8 @@ export default function App() {
       <AdminFinanceiro
         accessToken={accessToken}
         barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
         onSair={async () => {
@@ -228,7 +247,8 @@ export default function App() {
     return (
       <AdminProdutos
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
       />
@@ -244,7 +264,8 @@ export default function App() {
     return (
       <AdminVendas
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
       />
@@ -255,7 +276,8 @@ export default function App() {
     return (
       <AdminServicos
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
       />
@@ -266,7 +288,8 @@ export default function App() {
     return (
       <AdminProfissionais
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltar={() => setModoAdmin("adminHome")}
       />
@@ -278,7 +301,8 @@ export default function App() {
       <AdminPacotes
         profissionais={[]}
         accessToken={accessToken}
-        barbeariaId={adminBarbeariaId || undefined}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
         adminRole={adminRole}
         onVoltarAgenda={() => setModoAdmin("agenda")}
         onSair={() => setModoAdmin("adminHome")}

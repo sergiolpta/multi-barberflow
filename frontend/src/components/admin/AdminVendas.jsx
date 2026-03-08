@@ -4,30 +4,45 @@ import { useAdminProdutos } from "../../hooks/useAdminProdutos";
 import { useAdminVendas } from "../../hooks/useAdminVendas";
 import { useAdminProfissionais } from "../../hooks/useAdminProfissionais";
 
-export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
+export function AdminVendas({
+  accessToken,
+  adminRole,
+  onVoltar,
+  barbeariaNome,
+  barbeariaLogoUrl,
+}) {
   const podeVender = ["admin_owner", "admin_staff"].includes(adminRole);
 
-  const { produtos, loading: loadingProd, erro: erroProd, recarregar: recarregarProdutos } =
-    useAdminProdutos({ accessToken, barbeariaId });
+  const {
+    produtos,
+    loading: loadingProd,
+    erro: erroProd,
+    recarregar: recarregarProdutos,
+  } = useAdminProdutos({ accessToken });
 
-  const { vendas, loading: loadingVendas, erro: erroVendas, recarregar, registrarVenda } =
-    useAdminVendas({ accessToken, barbeariaId });
+  const {
+    vendas,
+    loading: loadingVendas,
+    erro: erroVendas,
+    recarregar,
+    registrarVenda,
+  } = useAdminVendas({ accessToken });
 
   const {
     profissionais,
     loading: loadingProf,
     erro: erroProf,
     recarregar: recarregarProfissionais,
-  } = useAdminProfissionais({ accessToken, barbeariaId });
+  } = useAdminProfissionais({ accessToken });
 
   const ativos = useMemo(() => (produtos || []).filter((p) => p.ativo), [produtos]);
+
   const profAtivos = useMemo(
     () => (profissionais || []).filter((p) => p.ativo),
     [profissionais]
   );
 
   const [profissionalId, setProfissionalId] = useState("");
-
   const [produtoId, setProdutoId] = useState("");
   const [qtd, setQtd] = useState(1);
   const [itens, setItens] = useState([]);
@@ -41,19 +56,24 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
 
   function addItem() {
     setMsg("");
+
     if (!podeVender) {
       setMsg("Seu perfil não tem permissão para registrar vendas.");
       return;
     }
+
     if (!produtoSelecionado) {
       setMsg("Selecione um produto.");
       return;
     }
+
     const n = Number(qtd);
+
     if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
       setMsg("Quantidade inválida (use inteiro > 0).");
       return;
     }
+
     if (Number(produtoSelecionado.estoque_qtd) < n) {
       setMsg(`Estoque insuficiente. Disponível: ${produtoSelecionado.estoque_qtd}`);
       return;
@@ -61,17 +81,28 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
 
     setItens((prev) => {
       const idx = prev.findIndex((i) => i.produto_id === produtoSelecionado.id);
+
       if (idx >= 0) {
         const novo = [...prev];
         const novaQtd = novo[idx].quantidade + n;
+
         if (Number(produtoSelecionado.estoque_qtd) < novaQtd) {
           setMsg(`Estoque insuficiente para somar. Disponível: ${produtoSelecionado.estoque_qtd}`);
           return prev;
         }
+
         novo[idx] = { ...novo[idx], quantidade: novaQtd };
         return novo;
       }
-      return [...prev, { produto_id: produtoSelecionado.id, nome: produtoSelecionado.nome, quantidade: n }];
+
+      return [
+        ...prev,
+        {
+          produto_id: produtoSelecionado.id,
+          nome: produtoSelecionado.nome,
+          quantidade: n,
+        },
+      ];
     });
   }
 
@@ -86,10 +117,12 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
       setMsg("Seu perfil não tem permissão para registrar vendas.");
       return;
     }
+
     if (!profissionalId) {
       setMsg("Selecione o profissional comissionado (obrigatório).");
       return;
     }
+
     if (!itens.length) {
       setMsg("Adicione ao menos 1 item.");
       return;
@@ -97,9 +130,13 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
 
     try {
       setSalvando(true);
+
       await registrarVenda({
         profissional_id: profissionalId,
-        itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: i.quantidade })),
+        itens: itens.map((i) => ({
+          produto_id: i.produto_id,
+          quantidade: i.quantidade,
+        })),
       });
 
       setItens([]);
@@ -121,25 +158,48 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
       <div className="w-full max-w-5xl mx-auto space-y-6">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Vendas (Balcão)</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Registre venda rápida, dê baixa no estoque e grave comissão (snapshot) por profissional.
-            </p>
-            {!podeVender && (
-              <p className="text-[11px] text-slate-500 mt-2">
-                Seu perfil pode visualizar, mas não pode registrar vendas.
-              </p>
-            )}
-          </div>
+        <header className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {barbeariaLogoUrl ? (
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
+                  Sem logo
+                </div>
+              )}
 
-          <button
-            onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-          >
-            Voltar ao painel
-          </button>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Painel administrativo
+                </p>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                  {barbeariaNome || "Barbearia"}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">Vendas (Balcão)</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Registre venda rápida, dê baixa no estoque e grave comissão por profissional.
+                </p>
+
+                {!podeVender && (
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    Seu perfil pode visualizar, mas não pode registrar vendas.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={onVoltar}
+              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+            >
+              Voltar ao painel
+            </button>
+          </div>
         </header>
 
         {msg ? (
@@ -160,7 +220,11 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
               <h2 className="font-semibold text-slate-50">PDV</h2>
               <button
                 onClick={async () => {
-                  await Promise.all([recarregarProdutos(), recarregar(), recarregarProfissionais()]);
+                  await Promise.all([
+                    recarregarProdutos(),
+                    recarregar(),
+                    recarregarProfissionais(),
+                  ]);
                 }}
                 className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
               >
@@ -169,9 +233,10 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
             </div>
 
             <div className="mt-3 grid gap-2 text-xs">
-              {/* PROFISSIONAL */}
               <div className="flex flex-col">
-                <span className="text-[11px] text-slate-400 mb-1">Profissional (comissionado)</span>
+                <span className="text-[11px] text-slate-400 mb-1">
+                  Profissional (comissionado)
+                </span>
                 <select
                   value={profissionalId}
                   onChange={(e) => setProfissionalId(e.target.value)}
@@ -186,7 +251,6 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
                 </select>
               </div>
 
-              {/* PRODUTO */}
               <div className="flex flex-col">
                 <span className="text-[11px] text-slate-400 mb-1">Produto</span>
                 <select
@@ -203,7 +267,6 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
                 </select>
               </div>
 
-              {/* QUANTIDADE + ADD */}
               <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-400 mb-1">Quantidade</span>
@@ -227,13 +290,15 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
                 </button>
               </div>
 
-              {/* ITENS */}
               <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
                 <div className="text-[11px] text-slate-400 mb-2">Itens</div>
                 {itens.length ? (
                   <ul className="space-y-2">
                     {itens.map((i) => (
-                      <li key={i.produto_id} className="flex items-center justify-between text-xs">
+                      <li
+                        key={i.produto_id}
+                        className="flex items-center justify-between text-xs"
+                      >
                         <span className="text-slate-200">
                           {i.nome} <span className="text-slate-500">x</span> {i.quantidade}
                         </span>
@@ -263,7 +328,6 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
             </div>
           </section>
 
-          {/* VENDAS DO DIA */}
           <section className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
             <h2 className="font-semibold text-slate-50">Vendas de hoje</h2>
 
@@ -272,7 +336,10 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
             ) : vendas?.length ? (
               <ul className="mt-3 space-y-2 max-h-[420px] overflow-y-auto pr-1 text-xs">
                 {vendas.map((v) => (
-                  <li key={v.id} className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2">
+                  <li
+                    key={v.id}
+                    className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-slate-200 font-semibold">
                         Total: R$ {Number(v.total || 0).toFixed(2)}
@@ -285,12 +352,12 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
                       </span>
                     </div>
 
-                    {/* opcional: mostra comissão e lucro se vierem do backend */}
                     <div className="text-[11px] text-slate-400 mt-1">
                       {typeof v.lucro_total !== "undefined" ? (
                         <>
                           Lucro: R$ {Number(v.lucro_total || 0).toFixed(2)} • Comissão: R${" "}
-                          {Number(v.comissao_valor || 0).toFixed(2)} ({Number(v.comissao_pct_aplicada || 0).toFixed(0)}%)
+                          {Number(v.comissao_valor || 0).toFixed(2)} (
+                          {Number(v.comissao_pct_aplicada || 0).toFixed(0)}%)
                         </>
                       ) : null}
                     </div>
@@ -319,4 +386,3 @@ export function AdminVendas({ accessToken, barbeariaId, adminRole, onVoltar }) {
     </div>
   );
 }
-

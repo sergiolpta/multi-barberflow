@@ -29,7 +29,8 @@ function competenciaMesAtualISO() {
 export function AdminPacotes({
   profissionais,
   accessToken,
-  barbeariaId,
+  barbeariaNome,
+  barbeariaLogoUrl,
   onVoltarAgenda,
   onSair,
 }) {
@@ -38,7 +39,7 @@ export function AdminPacotes({
 
   const [clienteNome, setClienteNome] = useState("");
   const [profissionalId, setProfissionalId] = useState("");
-  const [diaSemana, setDiaSemana] = useState("1"); // segunda como padrão
+  const [diaSemana, setDiaSemana] = useState("1");
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [duracaoMin, setDuracaoMin] = useState("30");
   const hojeISO = new Date().toISOString().slice(0, 10);
@@ -46,27 +47,23 @@ export function AdminPacotes({
   const [vigenciaFim, setVigenciaFim] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
-  // ✅ novo campo
-  const [precoMensal, setPrecoMensal] = useState(""); // string pra input
+  const [precoMensal, setPrecoMensal] = useState("");
   const [cobrancaAtiva, setCobrancaAtiva] = useState(true);
-  const [diaVencimento, setDiaVencimento] = useState(""); // opcional
+  const [diaVencimento, setDiaVencimento] = useState("");
 
   const [mensagemSucesso, setMensagemSucesso] = useState("");
   const [mensagemErroCriacao, setMensagemErroCriacao] = useState("");
 
-  const [salvandoAcaoId, setSalvandoAcaoId] = useState(""); // para botões por item
+  const [salvandoAcaoId, setSalvandoAcaoId] = useState("");
 
-  // edição inline de preço por pacote
   const [editandoPrecoId, setEditandoPrecoId] = useState("");
   const [novoPreco, setNovoPreco] = useState("");
 
-  // pagamentos (visualização)
   const [pagamentosAbertosId, setPagamentosAbertosId] = useState("");
   const [pagamentos, setPagamentos] = useState([]);
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
   const [erroPagamentos, setErroPagamentos] = useState("");
 
-  // forma pagamento (por padrão)
   const [formaPagamento, setFormaPagamento] = useState("pix");
 
   const {
@@ -79,16 +76,16 @@ export function AdminPacotes({
     desativarPacote,
     listarPagamentosPacote,
     registrarPagamentoPacote,
-  } = useAdminPacotes({ accessToken, barbeariaId });
+  } = useAdminPacotes({ accessToken });
 
   const handleAtualizarLista = useCallback(async () => {
-    if (!accessToken || !barbeariaId) return;
+    if (!accessToken) return;
 
     await listarPacotes({
       profissionalId: filtroProfissional || undefined,
       somenteAtivos,
     });
-  }, [accessToken, barbeariaId, listarPacotes, filtroProfissional, somenteAtivos]);
+  }, [accessToken, listarPacotes, filtroProfissional, somenteAtivos]);
 
   useEffect(() => {
     setMensagemSucesso("");
@@ -107,11 +104,6 @@ export function AdminPacotes({
     setMensagemSucesso("");
     setMensagemErroCriacao("");
 
-    if (!barbeariaId) {
-      setMensagemErroCriacao("Barbearia não identificada. Volte e entre novamente na área administrativa.");
-      return;
-    }
-
     if (!profissionalId) {
       setMensagemErroCriacao("Selecione um profissional.");
       return;
@@ -122,7 +114,6 @@ export function AdminPacotes({
       return;
     }
 
-    // valida preco_mensal (opcional, mas se informado precisa ser >= 0)
     let precoParsed = null;
     if (String(precoMensal).trim() !== "") {
       const n = Number(String(precoMensal).replace(",", "."));
@@ -133,7 +124,6 @@ export function AdminPacotes({
       precoParsed = n;
     }
 
-    // valida dia vencimento (opcional 1..31)
     let diaVenc = null;
     if (String(diaVencimento).trim() !== "") {
       const n = Number(diaVencimento);
@@ -155,8 +145,6 @@ export function AdminPacotes({
         vigencia_fim: vigenciaFim || null,
         observacoes: observacoes || null,
         ativo: true,
-
-        // ✅ novos campos
         preco_mensal: precoParsed,
         cobranca_ativa: !!cobrancaAtiva,
         dia_vencimento: diaVenc,
@@ -221,7 +209,6 @@ export function AdminPacotes({
 
     const raw = String(novoPreco).trim();
     if (raw === "") {
-      // permitir limpar para null (se seu backend aceitar)
       try {
         setSalvandoAcaoId(p.id);
         await atualizarPacote(p.id, { preco_mensal: null });
@@ -282,7 +269,6 @@ export function AdminPacotes({
     setMensagemErroCriacao("");
     setErroPagamentos("");
 
-    // regra: se cobrança ativa e preço <= 0, não faz sentido registrar
     const preco = Number(p.preco_mensal ?? 0);
     if (p.cobranca_ativa && (!Number.isFinite(preco) || preco <= 0)) {
       setMensagemErroCriacao("Defina um preço mensal > 0 antes de registrar pagamento (cobrança ativa).");
@@ -301,18 +287,15 @@ export function AdminPacotes({
 
       setMensagemSucesso(`Pagamento registrado (${competencia}) via ${formaPagamento}.`);
 
-      // se a aba de pagamentos estiver aberta, recarrega
       if (pagamentosAbertosId === p.id) {
         const resp = await listarPagamentosPacote({ pacoteId: p.id, limit: 24 });
         setPagamentos(Array.isArray(resp?.pagamentos) ? resp.pagamentos : Array.isArray(resp) ? resp : []);
       }
     } catch (e) {
-      // ✅ 409 = já existe pagamento na competência → tratar como "ok, já está pago"
       const status = e?.status;
       if (status === 409) {
         setMensagemSucesso("Este mês já está pago para esse pacote. (Nada foi duplicado)");
 
-        // se a aba estiver aberta (ou para deixar claro), recarrega pagamentos
         try {
           setLoadingPagamentos(true);
           setPagamentosAbertosId(p.id);
@@ -337,14 +320,26 @@ export function AdminPacotes({
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-5xl">
-        <header className="mb-6 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">
-              Pacotes Fixos (Clientes VIP)
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Configure horários semanais reservados por cliente. Pagamento mensal é registrado no financeiro.
-            </p>
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-center gap-4">
+            {barbeariaLogoUrl ? (
+              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <h1 className="text-2xl font-bold text-slate-50">
+                {barbeariaNome || "Pacotes Fixos"} <span className="text-slate-400">(Clientes VIP)</span>
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Configure horários semanais reservados por cliente. Pagamento mensal é registrado no financeiro.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -363,14 +358,7 @@ export function AdminPacotes({
           </div>
         </header>
 
-        {!barbeariaId ? (
-          <div className="bg-slate-800/40 border border-slate-700/60 text-slate-200 text-xs px-3 py-2 rounded-lg mb-4">
-            Carregando contexto da barbearia (barbeariaId)…
-          </div>
-        ) : null}
-
         <div className="grid md:grid-cols-[1.3fr_1.7fr] gap-6">
-          {/* FORMULÁRIO NOVO PACOTE */}
           <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
             <h2 className="font-semibold text-slate-100 mb-3">
               Novo pacote semanal
@@ -425,7 +413,6 @@ export function AdminPacotes({
                 </select>
               </div>
 
-              {/* ✅ preço + cobrança */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] text-slate-400">
@@ -571,7 +558,6 @@ export function AdminPacotes({
             </form>
           </section>
 
-          {/* LISTA DE PACOTES */}
           <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
             <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
               <h2 className="font-semibold text-slate-100">
@@ -610,7 +596,6 @@ export function AdminPacotes({
               </div>
             </div>
 
-            {/* forma de pagamento padrão */}
             <div className="mb-3 flex items-center gap-2 flex-wrap">
               <span className="text-[11px] text-slate-500">Forma de pagamento padrão:</span>
               <select
@@ -667,16 +652,17 @@ export function AdminPacotes({
                           {p.vigencia_fim ? `até ${formatarData(p.vigencia_fim)}` : "em aberto"}
                         </div>
 
-                        {/* ✅ preço + cobrança */}
                         <div className="text-slate-300 text-[11px] mt-2 flex items-center gap-2 flex-wrap">
                           <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
                             Preço: <b>{formatBRL(p.preco_mensal ?? 0)}</b>
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full border ${
-                            p.cobranca_ativa
-                              ? "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
-                              : "border-slate-600 text-slate-300 bg-slate-900/40"
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 rounded-full border ${
+                              p.cobranca_ativa
+                                ? "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
+                                : "border-slate-600 text-slate-300 bg-slate-900/40"
+                            }`}
+                          >
                             Cobrança: <b>{p.cobranca_ativa ? "Ativa" : "Pausada"}</b>
                           </span>
                           {p.dia_vencimento ? (
@@ -692,7 +678,6 @@ export function AdminPacotes({
                           </div>
                         )}
 
-                        {/* edição inline preço */}
                         {editandoPrecoId === p.id ? (
                           <div className="mt-3 flex items-center gap-2 flex-wrap">
                             <input
@@ -712,7 +697,10 @@ export function AdminPacotes({
                               {salvandoAcaoId === p.id ? "Salvando..." : "Salvar"}
                             </button>
                             <button
-                              onClick={() => { setEditandoPrecoId(""); setNovoPreco(""); }}
+                              onClick={() => {
+                                setEditandoPrecoId("");
+                                setNovoPreco("");
+                              }}
                               className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
                             >
                               Cancelar
@@ -776,7 +764,6 @@ export function AdminPacotes({
                       </div>
                     </div>
 
-                    {/* pagamentos */}
                     {pagamentosAbertosId === p.id ? (
                       <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
                         <div className="text-[11px] text-slate-400 mb-2">
@@ -821,4 +808,3 @@ export function AdminPacotes({
     </div>
   );
 }
-

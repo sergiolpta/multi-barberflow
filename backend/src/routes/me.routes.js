@@ -69,6 +69,19 @@ router.get("/", authAdminMiddleware, async (req, res) => {
       });
     }
 
+    const { data: barbearia, error: barbeariaErr } = await supabaseAdmin
+      .from("barbearias")
+      .select("id, nome, slug, whatsapp, email, ativo, logo_url")
+      .eq("id", barbeariaId)
+      .maybeSingle();
+
+    if (barbeariaErr) {
+      return res.status(500).json({
+        error: "ERRO_BARBEARIA",
+        message: barbeariaErr.message,
+      });
+    }
+
     return res.status(200).json({
       userId,
       email,
@@ -76,6 +89,14 @@ router.get("/", authAdminMiddleware, async (req, res) => {
       role: roleRow.role,
       displayName: profile.display_name || null,
       profissionalId: profile.profissional_id || null,
+
+      // branding / contexto da barbearia
+      barbeariaNome: barbearia?.nome || null,
+      barbeariaSlug: barbearia?.slug || null,
+      barbeariaWhatsapp: barbearia?.whatsapp || null,
+      barbeariaEmail: barbearia?.email || null,
+      barbeariaAtiva: barbearia?.ativo ?? null,
+      barbeariaLogoUrl: barbearia?.logo_url || null,
     });
   } catch (err) {
     return res.status(500).json({

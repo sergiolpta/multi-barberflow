@@ -12,6 +12,8 @@ export function useAdminAuth() {
   // Perfil vindo do BACKEND (/me)
   const [adminRole, setAdminRole] = useState("");
   const [adminBarbeariaId, setAdminBarbeariaId] = useState("");
+  const [adminBarbeariaNome, setAdminBarbeariaNome] = useState("");
+  const [adminBarbeariaLogoUrl, setAdminBarbeariaLogoUrl] = useState("");
 
   // evita race condition no /me
   const reqSeq = useRef(0);
@@ -28,6 +30,8 @@ export function useAdminAuth() {
     if (!mountedRef.current) return;
     setAdminRole("");
     setAdminBarbeariaId("");
+    setAdminBarbeariaNome("");
+    setAdminBarbeariaLogoUrl("");
   }, []);
 
   const limparSessaoLocal = useCallback(() => {
@@ -47,19 +51,18 @@ export function useAdminAuth() {
       try {
         if (mountedRef.current) setErro("");
 
-        // /me não depende de barbearia
-        const me = await apiFetch(`/me`, {
+        const me = await apiFetch("/me", {
           method: "GET",
           accessToken: tokenUsado,
-          skipBarbeariaId: true,
         });
 
-        // se veio outra chamada mais nova, ignora
         if (mySeq !== reqSeq.current) return;
-
         if (!mountedRef.current) return;
+
         setAdminRole(me?.role || "");
         setAdminBarbeariaId(me?.barbeariaId || "");
+        setAdminBarbeariaNome(me?.barbeariaNome || "");
+        setAdminBarbeariaLogoUrl(me?.barbeariaLogoUrl || "");
       } catch (err) {
         if (mySeq !== reqSeq.current) return;
 
@@ -68,7 +71,6 @@ export function useAdminAuth() {
         const status = err?.status;
         const msg = String(err?.message || "").toLowerCase();
 
-        // token inválido / sessão sem permissão -> limpa
         if (status === 401 || status === 403 || msg.includes("unauthorized")) {
           limparSessaoLocal();
         } else {
@@ -115,7 +117,6 @@ export function useAdminAuth() {
 
     loadSession();
 
-    // Listener para mudanças de sessão (login/logout/refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -186,6 +187,8 @@ export function useAdminAuth() {
     accessToken,
     adminRole,
     adminBarbeariaId,
+    adminBarbeariaNome,
+    adminBarbeariaLogoUrl,
     loading,
     erro,
     login,
@@ -193,4 +196,3 @@ export function useAdminAuth() {
     recarregarPerfilAdmin: carregarPerfilAdmin,
   };
 }
-

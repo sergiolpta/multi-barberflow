@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "../config/api";
 
-export function useAdminServicos({ accessToken, barbeariaId }) {
+export function useAdminServicos({ accessToken }) {
   const [servicos, setServicos] = useState([]);
   const [loadingServicos, setLoadingServicos] = useState(false);
   const [erroServicos, setErroServicos] = useState(null);
@@ -16,21 +16,12 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
       return;
     }
 
-    if (!barbeariaId) {
-      setErroServicos(
-        "Barbearia não definida. Verifique se /me retornou barbeariaId."
-      );
-      setServicos([]);
-      return;
-    }
-
     try {
       setLoadingServicos(true);
       setErroServicos(null);
 
       const lista = await apiFetch("/servicos/admin", {
         accessToken,
-        barbeariaId,
       });
 
       setServicos(Array.isArray(lista) ? lista : []);
@@ -41,7 +32,7 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
     } finally {
       setLoadingServicos(false);
     }
-  }, [accessToken, barbeariaId]);
+  }, [accessToken]);
 
   useEffect(() => {
     carregarServicos();
@@ -52,7 +43,6 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
       const body = await apiFetch("/servicos", {
         method: "POST",
         accessToken,
-        barbeariaId,
         body: JSON.stringify({ nome, duracao_minutos, preco, ativo }),
       });
 
@@ -68,7 +58,6 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
       const body = await apiFetch(`/servicos/${id}`, {
         method: "PUT",
         accessToken,
-        barbeariaId,
         body: JSON.stringify(dadosParciais),
       });
 
@@ -84,7 +73,6 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
       const body = await apiFetch(`/servicos/${id}`, {
         method: "DELETE",
         accessToken,
-        barbeariaId,
       });
 
       await carregarServicos();
@@ -104,4 +92,3 @@ export function useAdminServicos({ accessToken, barbeariaId }) {
     desativarServico,
   };
 }
-

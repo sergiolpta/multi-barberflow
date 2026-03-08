@@ -99,7 +99,88 @@ function KpiCard({ title, value, hint, tone = "slate" }) {
   );
 }
 
-function exportSnapshotPDF({ barbeariaId, fechamento, fechamentoId, profissionais }) {
+async function loadImageAsDataUrl(url) {
+  if (!url) return null;
+
+  try {
+    const res = await fetch(url, { mode: "cors", cache: "no-store" });
+    if (!res.ok) throw new Error(`Falha ao baixar imagem: ${res.status}`);
+
+    const blob = await res.blob();
+
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.warn("Não foi possível carregar logo para o PDF:", err);
+    return null;
+  }
+}
+
+async function addBrandToPdf(doc, { barbeariaNome, barbeariaLogoUrl, titulo, subtitulo }) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  let headerTop = 36;
+  let textX = 40;
+
+  const logoDataUrl = await loadImageAsDataUrl(barbeariaLogoUrl);
+
+  if (logoDataUrl) {
+    try {
+      const imgProps = doc.getImageProperties(logoDataUrl);
+      const boxW = 54;
+      const boxH = 54;
+
+      const ratio = Math.min(boxW / imgProps.width, boxH / imgProps.height);
+      const imgW = imgProps.width * ratio;
+      const imgH = imgProps.height * ratio;
+
+      const boxX = 40;
+      const boxY = 28;
+      const imgX = boxX + (boxW - imgW) / 2;
+      const imgY = boxY + (boxH - imgH) / 2;
+
+      doc.setDrawColor(220, 220, 220);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(boxX, boxY, boxW, boxH, 8, 8, "FD");
+      doc.addImage(logoDataUrl, "JPEG", imgX, imgY, imgW, imgH);
+
+      textX = 108;
+      headerTop = 40;
+    } catch (err) {
+      console.warn("Falha ao inserir logo no PDF:", err);
+    }
+  }
+
+  doc.setFontSize(16);
+  doc.text(barbeariaNome || "Barbearia", textX, headerTop);
+
+  doc.setFontSize(12);
+  doc.text(titulo || "Relatório", textX, headerTop + 18);
+
+  if (subtitulo) {
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text(subtitulo, textX, headerTop + 34, { maxWidth: pageWidth - textX - 40 });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  return {
+    contentStartY: logoDataUrl ? 110 : 86,
+  };
+}
+
+async function exportSnapshotPDF({
+  barbeariaId,
+  barbeariaNome,
+  barbeariaLogoUrl,
+  fechamento,
+  fechamentoId,
+  profissionais,
+}) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
   const id = fechamentoId || fechamento?.id || "—";
@@ -108,15 +189,19 @@ function exportSnapshotPDF({ barbeariaId, fechamento, fechamentoId, profissionai
   const status = String(fechamento?.status || "—");
   const geradoEm = new Date().toLocaleString("pt-BR");
 
-  doc.setFontSize(14);
-  doc.text("BarberFlow — Snapshot de Fechamento", 40, 40);
+  const { contentStartY } = await addBrandToPdf(doc, {
+    barbeariaNome,
+    barbeariaLogoUrl,
+    titulo: "Snapshot de Fechamento",
+    subtitulo: "Documento gerado pelo módulo financeiro com dados congelados por profissional.",
+  });
 
   doc.setFontSize(10);
-  doc.text(`Barbearia: ${barbeariaId || "—"}`, 40, 62);
-  doc.text(`Fechamento ID: ${id}`, 40, 78);
-  doc.text(`Período: ${periodoInicio || "—"} → ${periodoFim || "—"}`, 40, 94);
-  doc.text(`Status: ${status}`, 40, 110);
-  doc.text(`Gerado em: ${geradoEm}`, 40, 126);
+  doc.text(`Barbearia ID: ${barbeariaId || "—"}`, 40, contentStartY);
+  doc.text(`Fechamento ID: ${id}`, 40, contentStartY + 16);
+  doc.text(`Período: ${periodoInicio || "—"} → ${periodoFim || "—"}`, 40, contentStartY + 32);
+  doc.text(`Status: ${status}`, 40, contentStartY + 48);
+  doc.text(`Gerado em: ${geradoEm}`, 40, contentStartY + 64);
 
   const rows = (profissionais || []).map((p) => [
     p.profissional_nome || p.nome || "—",
@@ -130,7 +215,7 @@ function exportSnapshotPDF({ barbeariaId, fechamento, fechamentoId, profissionai
   ]);
 
   autoTable(doc, {
-    startY: 150,
+    startY: contentStartY + 88,
     head: [
       [
         "Profissional",
@@ -153,8 +238,10 @@ function exportSnapshotPDF({ barbeariaId, fechamento, fechamentoId, profissionai
   doc.save(`snapshot-${safe}.pdf`);
 }
 
-function exportPreviaPDF({
+async function exportPreviaPDF({
   barbeariaId,
+  barbeariaNome,
+  barbeariaLogoUrl,
   periodoInicio,
   periodoFim,
   titulo,
@@ -164,16 +251,20 @@ function exportPreviaPDF({
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const geradoEm = new Date().toLocaleString("pt-BR");
 
-  doc.setFontSize(14);
-  doc.text("BarberFlow — Prévia Financeira (Não Oficial)", 40, 40);
+  const { contentStartY } = await addBrandToPdf(doc, {
+    barbeariaNome,
+    barbeariaLogoUrl,
+    titulo: "Prévia Financeira (Não Oficial)",
+    subtitulo: "Relatório gerencial para análise do período. Não substitui fechamento oficial.",
+  });
 
   doc.setFontSize(10);
-  doc.text(`Barbearia: ${barbeariaId || "—"}`, 40, 62);
-  doc.text(`Período: ${periodoInicio || "—"} → ${periodoFim || "—"}`, 40, 78);
-  doc.text(`Escopo: ${titulo || "—"}`, 40, 94);
-  doc.text(`Gerado em: ${geradoEm}`, 40, 110);
+  doc.text(`Barbearia ID: ${barbeariaId || "—"}`, 40, contentStartY);
+  doc.text(`Período: ${periodoInicio || "—"} → ${periodoFim || "—"}`, 40, contentStartY + 16);
+  doc.text(`Escopo: ${titulo || "—"}`, 40, contentStartY + 32);
+  doc.text(`Gerado em: ${geradoEm}`, 40, contentStartY + 48);
 
-  const kStartY = 132;
+  const kStartY = contentStartY + 74;
   doc.setFontSize(11);
   doc.text("Resumo", 40, kStartY);
 
@@ -214,7 +305,13 @@ function lsSafeSet(key, value) {
   }
 }
 
-export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
+export function AdminFinanceiro({
+  accessToken,
+  barbeariaId,
+  barbeariaNome,
+  barbeariaLogoUrl,
+  onVoltar,
+}) {
   const {
     loading,
     erro,
@@ -242,7 +339,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
     excluirDespesa,
 
     selecionarFechamentoPorData,
-  } = useAdminFinanceiro({ accessToken, barbeariaId });
+  } = useAdminFinanceiro({ accessToken });
 
   const [tab, setTab] = useState("resumo");
   const [dataInicial, setDataInicial] = useState("");
@@ -254,8 +351,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
     const now = new Date();
     setDataInicial(yyyyMmDd(firstDayOfMonth(now)));
     setDataFinal(yyyyMmDd(lastDayOfMonth(now)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dataInicial, dataFinal]);
 
   useEffect(() => {
     if (!fechamento?.periodo_inicio || !fechamento?.periodo_fim) return;
@@ -291,8 +387,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
       setFechamentoIdManual(saved);
       setRecoveredFromLS(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [barbeariaId]);
+  }, [barbeariaId, fechamentoId, setFechamentoIdManual]);
 
   const periodoInicio = (dataInicial || "").trim();
   const periodoFim = (dataFinal || "").trim();
@@ -303,7 +398,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
     let alive = true;
 
     async function loadProfissionais() {
-      if (!accessToken || !barbeariaId) {
+      if (!accessToken) {
         if (alive) setProfissionaisLista([]);
         return;
       }
@@ -312,7 +407,6 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
         const list = await apiFetch("/profissionais/admin", {
           method: "GET",
           accessToken,
-          barbeariaId,
         });
 
         const arr = Array.isArray(list) ? list : [];
@@ -337,7 +431,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
     return () => {
       alive = false;
     };
-  }, [accessToken, barbeariaId]);
+  }, [accessToken]);
 
   const optionsProfissionais = useMemo(() => {
     if (Array.isArray(profissionaisLista) && profissionaisLista.length) {
@@ -381,8 +475,14 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
 
     if (!adData) setAdData(toInputDateBR(periodoInicio));
     if (!dpData) setDpData(toInputDateBR(periodoInicio));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodoInicio, periodoFim]);
+  }, [
+    periodoInicio,
+    periodoFim,
+    adData,
+    dpData,
+    carregarAdiantamentos,
+    carregarDespesas,
+  ]);
 
   const triedAutoSelectRef = useRef("");
   useEffect(() => {
@@ -411,8 +511,15 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
         console.warn("Auto-seleção de fechamento falhou:", e);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, periodoInicio, periodoFim, fechamentoId, barbeariaId, selecionarFechamentoPorData]);
+  }, [
+    tab,
+    periodoInicio,
+    periodoFim,
+    fechamentoId,
+    barbeariaId,
+    selecionarFechamentoPorData,
+    setFechamentoIdManual,
+  ]);
 
   const lastLoadedSnapshotIdRef = useRef("");
   useEffect(() => {
@@ -423,8 +530,7 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
     lastLoadedSnapshotIdRef.current = fechamentoId;
 
     carregarProfissionais(fechamentoId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, fechamentoId]);
+  }, [tab, fechamentoId, carregarProfissionais]);
 
   async function handleCriarFechamento() {
     if (!dataInicial || !dataFinal) return;
@@ -687,17 +793,31 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
       <div className="w-full max-w-6xl mx-auto">
-        <header className="mb-5 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Financeiro (Owner)</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Prévia = retrato do período. Fechamento = oficial (snapshot e conclusão).
-            </p>
+        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-center gap-4">
+            {barbeariaLogoUrl ? (
+              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <h1 className="text-2xl font-bold text-slate-50">
+                {barbeariaNome || "Financeiro"} <span className="text-slate-400">(Owner)</span>
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Prévia = retrato do período. Fechamento = oficial (snapshot e conclusão).
+              </p>
+            </div>
           </div>
 
           <button
             onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 transition"
+            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 transition self-start"
           >
             Voltar ao painel
           </button>
@@ -844,32 +964,50 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
                   <button
                     type="button"
                     disabled={!previa}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!previaEscopo) return;
 
                       const titulo = previaEscopo?.nome || "Todos";
                       const kpis = [
-                        { label: "Receitas operacionais (Serviços + Pacotes + Lucro PDV)", value: fmtBRL(previaEscopo.receitasOperacionais) },
+                        {
+                          label: "Receitas operacionais (Serviços + Pacotes + Lucro PDV)",
+                          value: fmtBRL(previaEscopo.receitasOperacionais),
+                        },
                         { label: "Comissão bruta", value: fmtBRL(previaEscopo.comBruta) },
-                        { label: "Adiantamentos (pendentes no período)", value: fmtBRL(previaEscopo.ad) },
+                        {
+                          label: "Adiantamentos (pendentes no período)",
+                          value: fmtBRL(previaEscopo.ad),
+                        },
                         { label: "Comissão líquida", value: fmtBRL(previaEscopo.comLiquida) },
-                        { label: "Resultado (antes despesas)", value: fmtBRL(previaEscopo.resultadoAntesDespesas) },
+                        {
+                          label: "Resultado (antes despesas)",
+                          value: fmtBRL(previaEscopo.resultadoAntesDespesas),
+                        },
                       ];
 
-                      const rows =
-                        (previaPorProfList || []).map((r) => {
-                          const nome = nomeProfPorId.get(r.profissional_id) || "—";
-                          const serv = Number(r?.servicos?.total ?? 0);
-                          const pac = Number(r?.pacotes?.total ?? 0);
-                          const pdv = Number(r?.pdv?.lucro_total ?? 0);
-                          const com = Number(r?.total ?? 0);
-                          const ad = Number(r?.adiantamentos?.total ?? 0);
-                          const liq = Number(r?.liquido ?? (com - ad));
-                          return [nome, fmtBRL(serv), fmtBRL(pac), fmtBRL(pdv), fmtBRL(com), fmtBRL(ad), fmtBRL(liq)];
-                        });
+                      const rows = (previaPorProfList || []).map((r) => {
+                        const nome = nomeProfPorId.get(r.profissional_id) || "—";
+                        const serv = Number(r?.servicos?.total ?? 0);
+                        const pac = Number(r?.pacotes?.total ?? 0);
+                        const pdv = Number(r?.pdv?.lucro_total ?? 0);
+                        const com = Number(r?.total ?? 0);
+                        const ad = Number(r?.adiantamentos?.total ?? 0);
+                        const liq = Number(r?.liquido ?? (com - ad));
+                        return [
+                          nome,
+                          fmtBRL(serv),
+                          fmtBRL(pac),
+                          fmtBRL(pdv),
+                          fmtBRL(com),
+                          fmtBRL(ad),
+                          fmtBRL(liq),
+                        ];
+                      });
 
-                      exportPreviaPDF({
+                      await exportPreviaPDF({
                         barbeariaId,
+                        barbeariaNome,
+                        barbeariaLogoUrl,
                         periodoInicio,
                         periodoFim,
                         titulo,
@@ -893,11 +1031,36 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
 
               {previa && previaEscopo ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                  <KpiCard title="Serviços (total)" value={fmtBRL(previaEscopo.servTotal)} hint={previaEscopo.nome} tone="sky" />
-                  <KpiCard title="Pacotes (total)" value={fmtBRL(previaEscopo.pacTotal)} hint="Receita pacote" tone="sky" />
-                  <KpiCard title="PDV (lucro)" value={fmtBRL(previaEscopo.pdvLucro)} hint="Base DRE" tone="sky" />
-                  <KpiCard title="Comissão bruta" value={fmtBRL(previaEscopo.comBruta)} hint="Custo" tone="amber" />
-                  <KpiCard title="Adiantamentos" value={fmtBRL(previaEscopo.ad)} hint="Pendentes no período" tone="rose" />
+                  <KpiCard
+                    title="Serviços (total)"
+                    value={fmtBRL(previaEscopo.servTotal)}
+                    hint={previaEscopo.nome}
+                    tone="sky"
+                  />
+                  <KpiCard
+                    title="Pacotes (total)"
+                    value={fmtBRL(previaEscopo.pacTotal)}
+                    hint="Receita pacote"
+                    tone="sky"
+                  />
+                  <KpiCard
+                    title="PDV (lucro)"
+                    value={fmtBRL(previaEscopo.pdvLucro)}
+                    hint="Base DRE"
+                    tone="sky"
+                  />
+                  <KpiCard
+                    title="Comissão bruta"
+                    value={fmtBRL(previaEscopo.comBruta)}
+                    hint="Custo"
+                    tone="amber"
+                  />
+                  <KpiCard
+                    title="Adiantamentos"
+                    value={fmtBRL(previaEscopo.ad)}
+                    hint="Pendentes no período"
+                    tone="rose"
+                  />
                   <KpiCard
                     title="Resultado (antes despesas)"
                     value={fmtBRL(previaEscopo.resultadoAntesDespesas)}
@@ -909,33 +1072,44 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
 
               {previa && !previaEscopo ? (
                 <div className="text-[11px] text-slate-500 mt-2">
-                  Não foi possível montar a prévia por profissional (verifique se a prévia retornou <code>comissoes.por_profissional</code>).
+                  Não foi possível montar a prévia por profissional (verifique se a prévia retornou{" "}
+                  <code>comissoes.por_profissional</code>).
                 </div>
               ) : null}
-            </div>
 
-            {previaResumo ? (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <KpiCard
-                  title="Receitas operacionais"
-                  value={fmtBRL(previaResumo.receitasOperacionais)}
-                  hint="Serviços + Pacotes + Lucro PDV"
-                  tone="sky"
-                />
-                <KpiCard title="Comissões (custo)" value={fmtBRL(previaResumo.comissaoBruta)} hint="Custo real" tone="amber" />
-                <KpiCard title="Despesas" value={fmtBRL(totalDespesasPeriodo)} hint="Operacional" tone="rose" />
-                <KpiCard
-                  title="Resultado (DRE)"
-                  value={fmtBRL(resultadoDRE)}
-                  hint="Se negativo: rever despesas/comissões"
-                  tone={resultadoDRE >= 0 ? "emerald" : "rose"}
-                />
-              </div>
-            ) : (
-              <div className="text-sm text-slate-400 mt-2">
-                Nenhuma prévia carregada. Clique em <b>Gerar prévia</b>.
-              </div>
-            )}
+              {previaResumo ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <KpiCard
+                    title="Receitas operacionais"
+                    value={fmtBRL(previaResumo.receitasOperacionais)}
+                    hint="Serviços + Pacotes + Lucro PDV"
+                    tone="sky"
+                  />
+                  <KpiCard
+                    title="Comissões (custo)"
+                    value={fmtBRL(previaResumo.comissaoBruta)}
+                    hint="Custo real"
+                    tone="amber"
+                  />
+                  <KpiCard
+                    title="Despesas"
+                    value={fmtBRL(totalDespesasPeriodo)}
+                    hint="Operacional"
+                    tone="rose"
+                  />
+                  <KpiCard
+                    title="Resultado (DRE)"
+                    value={fmtBRL(resultadoDRE)}
+                    hint="Se negativo: rever despesas/comissões"
+                    tone={resultadoDRE >= 0 ? "emerald" : "rose"}
+                  />
+                </div>
+              ) : (
+                <div className="text-sm text-slate-400 mt-2">
+                  Nenhuma prévia carregada. Clique em <b>Gerar prévia</b>.
+                </div>
+              )}
+            </div>
           </section>
         ) : null}
 
@@ -982,7 +1156,16 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
 
                   <button
                     type="button"
-                    onClick={() => exportSnapshotPDF({ barbeariaId, fechamento, fechamentoId, profissionais })}
+                    onClick={async () =>
+                      await exportSnapshotPDF({
+                        barbeariaId,
+                        barbeariaNome,
+                        barbeariaLogoUrl,
+                        fechamento,
+                        fechamentoId,
+                        profissionais,
+                      })
+                    }
                     disabled={!profissionais?.length}
                     className="text-xs px-3 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
                     title={!profissionais?.length ? "Carregue um snapshot primeiro" : ""}
@@ -1063,7 +1246,8 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
                   </table>
 
                   <div className="text-[11px] text-slate-500 mt-3">
-                    Regra: serviços entram no fechamento quando <code>agendamentos.status</code> = <code>"confirmado"</code>.
+                    Regra: serviços entram no fechamento quando <code>agendamentos.status</code> ={" "}
+                    <code>"confirmado"</code>.
                   </div>
                 </div>
               ) : (
@@ -1197,7 +1381,9 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
                               <td className="py-2 px-2">{nome}</td>
                               <td className="py-2 px-2 text-right">{fmtBRL(a.valor)}</td>
                               <td className="py-2 px-2">
-                                <Badge tone={abatido ? "emerald" : "amber"}>{abatido ? "Abatido" : "Pendente"}</Badge>
+                                <Badge tone={abatido ? "emerald" : "amber"}>
+                                  {abatido ? "Abatido" : "Pendente"}
+                                </Badge>
                               </td>
                               <td className="py-2 pl-2 text-right">
                                 <button
@@ -1383,7 +1569,9 @@ export function AdminFinanceiro({ accessToken, barbeariaId, onVoltar }) {
                   </div>
                 ) : (
                   <div className="text-sm text-slate-400">
-                    {periodoInicio && periodoFim ? "Nenhuma despesa no período." : "Defina um período para listar as despesas."}
+                    {periodoInicio && periodoFim
+                      ? "Nenhuma despesa no período."
+                      : "Defina um período para listar as despesas."}
                   </div>
                 )}
               </div>

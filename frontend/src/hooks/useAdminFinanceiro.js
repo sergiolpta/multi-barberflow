@@ -2,7 +2,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { apiFetch } from "../config/api";
 
-export function useAdminFinanceiro({ accessToken, barbeariaId }) {
+export function useAdminFinanceiro({ accessToken }) {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -12,21 +12,20 @@ export function useAdminFinanceiro({ accessToken, barbeariaId }) {
   // ⚠️ legado: ainda existe para compatibilidade, mas não é mais necessário no UX
   const [fechamentoIdManual, setFechamentoIdManual] = useState("");
 
-  // ✅ lista de fechamentos
+  // lista de fechamentos
   const [fechamentos, setFechamentos] = useState([]);
 
   const [adiantamentos, setAdiantamentos] = useState([]);
   const [despesas, setDespesas] = useState([]);
 
-  // ✅ Prévia dinâmica
+  // prévia dinâmica
   const [previa, setPrevia] = useState(null);
 
   const headersBase = useMemo(
     () => ({
       accessToken,
-      barbeariaId,
     }),
-    [accessToken, barbeariaId]
+    [accessToken]
   );
 
   const limparErro = () => setErro("");
@@ -65,11 +64,9 @@ export function useAdminFinanceiro({ accessToken, barbeariaId }) {
           ...headersBase,
         });
 
-        // ✅ FIX: NÃO apagar estado se backend vier incompleto
         if (resp?.fechamento) {
           setFechamentoAtual(resp.fechamento);
         } else {
-          // mantém fechamento atual; ao menos garante o ID manual
           setFechamentoIdManual(id);
         }
 
@@ -342,7 +339,6 @@ export function useAdminFinanceiro({ accessToken, barbeariaId }) {
 
         if (resp?.fechamento) setFechamentoAtual(resp.fechamento);
 
-        // ✅ mantém snapshot em modo leitura
         await carregarProfissionais(id);
 
         const fi = resp?.fechamento?.periodo_inicio || fechamento?.periodo_inicio;

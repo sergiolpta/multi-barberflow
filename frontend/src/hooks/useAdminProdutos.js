@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../config/api";
 
-export function useAdminProdutos({ accessToken, barbeariaId }) {
+export function useAdminProdutos({ accessToken }) {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(null);
@@ -13,16 +13,11 @@ export function useAdminProdutos({ accessToken, barbeariaId }) {
       setProdutos([]);
       return;
     }
-    if (!barbeariaId) {
-      setErro("Barbearia não identificada (falha ao carregar /me).");
-      setProdutos([]);
-      return;
-    }
 
     try {
       setLoading(true);
       setErro(null);
-      const data = await apiFetch("/produtos", { accessToken, barbeariaId });
+      const data = await apiFetch("/produtos", { accessToken });
       setProdutos(Array.isArray(data?.produtos) ? data.produtos : Array.isArray(data) ? data : []);
     } catch (e) {
       setErro(e?.message || "Erro ao carregar produtos.");
@@ -30,7 +25,7 @@ export function useAdminProdutos({ accessToken, barbeariaId }) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, barbeariaId]);
+  }, [accessToken]);
 
   useEffect(() => {
     carregar();
@@ -40,7 +35,6 @@ export function useAdminProdutos({ accessToken, barbeariaId }) {
     const data = await apiFetch("/produtos", {
       method: "POST",
       accessToken,
-      barbeariaId,
       body: JSON.stringify(payload),
     });
     return data;
@@ -50,7 +44,6 @@ export function useAdminProdutos({ accessToken, barbeariaId }) {
     const data = await apiFetch(`/produtos/${id}`, {
       method: "PUT",
       accessToken,
-      barbeariaId,
       body: JSON.stringify(payload),
     });
     return data;
@@ -65,4 +58,3 @@ export function useAdminProdutos({ accessToken, barbeariaId }) {
     atualizarProduto,
   };
 }
-

@@ -12,25 +12,21 @@ import { apiFetch } from "../config/api";
  *  - data: YYYY-MM-DD (obrigatório)
  *  - profissionalId: opcional (filtra por profissional)
  *  - accessToken: JWT do Supabase (obrigatório p/ admin)
- *  - barbeariaId: uuid (vem do /me)
  */
 export function useAdminAgenda({
   data,
   profissionalId,
   accessToken,
-  barbeariaId,
 }) {
   const [agenda, setAgenda] = useState([]);
   const [loadingAgenda, setLoadingAgenda] = useState(false);
   const [erroAgenda, setErroAgenda] = useState(null);
 
-  // evita race condition: só a última requisição “vence”
   const reqSeq = useRef(0);
 
   const carregarAgenda = useCallback(async () => {
     const mySeq = ++reqSeq.current;
 
-    // Se não tem data, zera e não tenta buscar
     if (!data) {
       setErroAgenda(null);
       setAgenda([]);
@@ -47,15 +43,6 @@ export function useAdminAgenda({
       return;
     }
 
-    if (!barbeariaId) {
-      setErroAgenda(
-        "Não foi possível identificar a barbearia deste usuário. Faça login novamente (falha ao carregar /me)."
-      );
-      setAgenda([]);
-      setLoadingAgenda(false);
-      return;
-    }
-
     try {
       setLoadingAgenda(true);
       setErroAgenda(null);
@@ -65,10 +52,8 @@ export function useAdminAgenda({
 
       const json = await apiFetch(`/agendamentos?${params.toString()}`, {
         accessToken,
-        barbeariaId,
       });
 
-      // se outra requisição mais nova já começou, ignora esta
       if (mySeq !== reqSeq.current) return;
 
       const itens = Array.isArray(json)
@@ -88,33 +73,25 @@ export function useAdminAgenda({
       if (mySeq !== reqSeq.current) return;
       setLoadingAgenda(false);
     }
-  }, [data, profissionalId, accessToken, barbeariaId]);
+  }, [data, profissionalId, accessToken]);
 
   useEffect(() => {
     carregarAgenda();
   }, [carregarAgenda]);
 
-  // ------------------------------------------------------------------
-  // AÇÕES: reagendar e cancelar
-  // ------------------------------------------------------------------
-
   async function reagendarAgendamento({ id, novaData, novaHora }) {
     if (!accessToken) throw new Error("Token de acesso não encontrado.");
-    if (!barbeariaId)
-      throw new Error("Barbearia não identificada (falha ao carregar /me).");
 
     if (!id || !novaData || !novaHora) {
       throw new Error("id, data e hora são obrigatórios para reagendar.");
     }
 
-    // normaliza HH:MM -> HH:MM:SS
     let horaUsada = String(novaHora);
     if (horaUsada.length === 5) horaUsada = `${horaUsada}:00`;
 
     return apiFetch(`/agendamentos/${id}/reagendar`, {
       method: "PUT",
       accessToken,
-      barbeariaId,
       body: JSON.stringify({
         data: novaData,
         hora: horaUsada,
@@ -124,23 +101,13 @@ export function useAdminAgenda({
 
   async function cancelarAgendamento(id) {
     if (!accessToken) throw new Error("Token de acesso não encontrado.");
-    if (!barbeariaId)
-      throw new Error("Barbearia não identificada (falha ao carregar /me).");
-
     if (!id) throw new Error("id é obrigatório para cancelar agendamento.");
 
     return apiFetch(`/agendamentos/${id}/cancelar`, {
       method: "POST",
       accessToken,
-      barbeariaId,
     });
   }
-
-  // ------------------------------------------------------------------
-  // NOVO: lançar extras (serviços) no financeiro sem mexer na agenda
-  // Endpoint: POST /agendamentos/:id/extras
-  // Body: { itens: [{ servico_id, quantidade?, preco_venda_unit?, preco_custo_unit? }] }
-  // ------------------------------------------------------------------
 
   function toNumberOrNull(v) {
     if (v == null) return null;
@@ -152,13 +119,10 @@ export function useAdminAgenda({
   async function adicionarExtrasAgendamento({
     id,
     itens,
-    profissional_id, // opcional (se quiser forçar)
-    user_id, // opcional (se quiser forçar)
+    profissional_id,
+    user_id,
   }) {
     if (!accessToken) throw new Error("Token de acesso não encontrado.");
-    if (!barbeariaId)
-      throw new Error("Barbearia não identificada (falha ao carregar /me).");
-
     if (!id) throw new Error("id é obrigatório para lançar extras.");
     if (!Array.isArray(itens) || itens.length === 0) {
       throw new Error("Informe ao menos um item de extra.");
@@ -171,11 +135,9 @@ export function useAdminAgenda({
 
       const obj = {
         servico_id: it.servico_id,
-        // se vier inválido/vazio, default 1 (backend também assume 1)
         quantidade: qtd && qtd > 0 ? Math.floor(qtd) : 1,
       };
 
-      // só manda se for número válido (senão deixa backend usar preço do serviço / custo 0)
       if (pv != null && pv >= 0) obj.preco_venda_unit = pv;
       if (pc != null && pc >= 0) obj.preco_custo_unit = pc;
 
@@ -191,7 +153,6 @@ export function useAdminAgenda({
     return apiFetch(`/agendamentos/${id}/extras`, {
       method: "POST",
       accessToken,
-      barbeariaId,
       body: JSON.stringify(body),
     });
   }
@@ -203,6 +164,6 @@ export function useAdminAgenda({
     recarregarAgenda: carregarAgenda,
     reagendarAgendamento,
     cancelarAgendamento,
-    adicionarExtrasAgendamento, // ✅ novo
+    adicionarExtrasAgendamento,
   };
 }

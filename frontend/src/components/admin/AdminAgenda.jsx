@@ -6,14 +6,16 @@ import { apiFetch } from "../../config/api";
 /**
  * Props esperadas:
  * - accessToken
- * - barbeariaId (vem do /me no backend)
- * - adminRole   ("admin_owner" | "admin_staff" | etc.)
+ * - barbeariaNome
+ * - barbeariaLogoUrl
+ * - adminRole
  * - onVoltar
- * - onIrFinanceiro (opcional) → navega para página Financeiro (owner only)
+ * - onIrFinanceiro (opcional)
  */
 export function AdminAgenda({
   accessToken,
-  barbeariaId,
+  barbeariaNome,
+  barbeariaLogoUrl,
   adminRole,
   onVoltar,
   onIrFinanceiro,
@@ -26,7 +28,6 @@ export function AdminAgenda({
   const [loadingProfissionais, setLoadingProfissionais] = useState(false);
   const [erroProfissionais, setErroProfissionais] = useState(null);
 
-  // ✅ regras de acesso do ADMIN
   const podeGerirAgenda = ["admin_owner", "admin_staff"].includes(adminRole);
   const podeVerFinanceiro = adminRole === "admin_owner";
 
@@ -42,14 +43,14 @@ export function AdminAgenda({
     data: dataAgenda,
     profissionalId: profissionalFiltro || null,
     accessToken,
-    barbeariaId,
+    
   });
 
   useEffect(() => {
     let alive = true;
 
     async function carregarProfissionais() {
-      if (!accessToken || !barbeariaId) return;
+      if (!accessToken) return;
 
       setLoadingProfissionais(true);
       setErroProfissionais(null);
@@ -58,7 +59,6 @@ export function AdminAgenda({
         const data = await apiFetch("/profissionais/admin", {
           method: "GET",
           accessToken,
-          barbeariaId,
         });
 
         const lista = Array.isArray(data) ? data : data?.data || [];
@@ -80,11 +80,8 @@ export function AdminAgenda({
     return () => {
       alive = false;
     };
-  }, [accessToken, barbeariaId]);
+  }, [accessToken]);
 
-  // ============================
-  // === UTIL
-  // ============================
   function toNumberOrNull(v) {
     if (v == null) return null;
     const s = String(v).trim();
@@ -117,9 +114,6 @@ export function AdminAgenda({
     return [];
   }
 
-  // ============================
-  // === BLOQUEIO DE AGENDA ====
-  // ============================
   const [bloqueioProfissionalId, setBloqueioProfissionalId] = useState("");
   const [bloqueioData, setBloqueioData] = useState(hoje);
   const [bloqueioDiaInteiro, setBloqueioDiaInteiro] = useState(false);
@@ -140,14 +134,7 @@ export function AdminAgenda({
     }
 
     if (!accessToken) {
-      setBloqueioErro("Token de acesso não encontrado. Faça login novamente.");
-      return;
-    }
-
-    if (!barbeariaId) {
-      setBloqueioErro(
-        "Não foi possível identificar a barbearia deste usuário. Faça login novamente (falha ao carregar /me)."
-      );
+      setBloqueioErro("Sessão inválida. Faça login novamente.");
       return;
     }
 
@@ -181,10 +168,9 @@ export function AdminAgenda({
     try {
       setBloqueioLoading(true);
 
-      await apiFetch(`/bloqueios`, {
+      await apiFetch("/bloqueios", {
         method: "POST",
         accessToken,
-        barbeariaId,
         body: JSON.stringify({
           profissional_id: profissionalIdUsado,
           data: bloqueioData,
@@ -206,9 +192,6 @@ export function AdminAgenda({
     }
   }
 
-  // ============================
-  // === MODAL NOVO AGENDAMENTO
-  // ============================
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoSaving, setNovoSaving] = useState(false);
   const [novoErro, setNovoErro] = useState(null);
@@ -293,7 +276,7 @@ export function AdminAgenda({
       return;
     }
 
-    if (!accessToken || !barbeariaId) return;
+    if (!accessToken) return;
 
     setClienteSugErro(null);
     setClienteSugLoading(true);
@@ -304,7 +287,7 @@ export function AdminAgenda({
       try {
         const data = await apiFetch(
           `/clientes/search?q=${encodeURIComponent(q)}&limit=10`,
-          { method: "GET", accessToken, barbeariaId }
+          { method: "GET", accessToken }
         );
         const list = Array.isArray(data) ? data : data?.data || [];
         setClienteSugestoes(list || []);
@@ -319,11 +302,8 @@ export function AdminAgenda({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [clienteQuery, novoOpen, accessToken, barbeariaId, clienteId, clienteNome]);
+  }, [clienteQuery, novoOpen, accessToken, clienteId, clienteNome]);
 
-  // ============================
-  // === SERVIÇOS
-  // ============================
   const [servicos, setServicos] = useState([]);
   const [servicosLoading, setServicosLoading] = useState(false);
   const [servicosErro, setServicosErro] = useState(null);
@@ -332,16 +312,17 @@ export function AdminAgenda({
     let alive = true;
 
     async function carregarServicos() {
-      if (!accessToken || !barbeariaId) return;
+      if (!novoOpen) return;
+      if (!accessToken) return;
       if (servicos && servicos.length > 0) return;
 
       setServicosErro(null);
       setServicosLoading(true);
+
       try {
-        const data = await apiFetch(`/servicos`, {
+        const data = await apiFetch("/servicos/admin", {
           method: "GET",
           accessToken,
-          barbeariaId,
         });
 
         const lista = Array.isArray(data) ? data : data?.data || [];
@@ -358,20 +339,18 @@ export function AdminAgenda({
       }
     }
 
-    if (novoOpen) carregarServicos();
+    carregarServicos();
+
     return () => {
       alive = false;
     };
-  }, [novoOpen, accessToken, barbeariaId, servicos]);
+  }, [novoOpen, accessToken, servicos]);
 
   const servicoSelecionadoNovo = useMemo(() => {
     if (!novoServicoId) return null;
     return servicos.find((s) => s.id === novoServicoId) || null;
   }, [novoServicoId, servicos]);
 
-  // ============================
-  // === DISPONIBILIDADE
-  // ============================
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsErro, setSlotsErro] = useState(null);
@@ -381,8 +360,8 @@ export function AdminAgenda({
     setSlots([]);
     setNovoHora("");
 
-    if (!accessToken || !barbeariaId) {
-      setSlotsErro("Token/barbearia não encontrados. Faça login novamente.");
+    if (!accessToken) {
+      setSlotsErro("Sessão inválida. Faça login novamente.");
       return;
     }
 
@@ -410,7 +389,7 @@ export function AdminAgenda({
         )}&data=${encodeURIComponent(novoData)}&servico_id=${encodeURIComponent(
           novoServicoId
         )}`,
-        { method: "GET", accessToken, barbeariaId }
+        { method: "GET", accessToken }
       );
 
       const list = extractHorariosArray(data);
@@ -427,16 +406,17 @@ export function AdminAgenda({
 
   useEffect(() => {
     if (!novoOpen) return;
+    if (!accessToken) return;
     if (!novoProfissionalId || !novoServicoId || !novoData) return;
     carregarDisponibilidade();
-  }, [novoOpen, novoProfissionalId, novoServicoId, novoData]);
+  }, [novoOpen, accessToken, novoProfissionalId, novoServicoId, novoData]);
 
   async function criarAgendamentoNovo() {
     setNovoErro(null);
     setNovoSucesso(null);
 
-    if (!accessToken || !barbeariaId) {
-      setNovoErro("Token/barbearia não encontrados. Faça login novamente.");
+    if (!accessToken) {
+      setNovoErro("Sessão inválida. Faça login novamente.");
       return;
     }
 
@@ -491,10 +471,9 @@ export function AdminAgenda({
         ...(clienteNascimento ? { cliente_nascimento: clienteNascimento } : {}),
       };
 
-      await apiFetch(`/agendamentos`, {
+      await apiFetch("/agendamentos", {
         method: "POST",
         accessToken,
-        barbeariaId,
         body: JSON.stringify(payload),
       });
 
@@ -511,9 +490,6 @@ export function AdminAgenda({
     }
   }
 
-  // ============================
-  // === MODAL EDITAR
-  // ============================
   const [editOpen, setEditOpen] = useState(false);
   const [editAg, setEditAg] = useState(null);
 
@@ -628,9 +604,6 @@ export function AdminAgenda({
     setExtras((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  // ============================
-  // === AÇÕES EDITAR / CANCELAR
-  // ============================
   async function handleCancelar(ag) {
     if (!podeGerirAgenda) {
       alert("Seu perfil não tem permissão para cancelar agendamentos.");
@@ -719,22 +692,36 @@ export function AdminAgenda({
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-5xl">
-        <header className="mb-6 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Agenda do dia</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Visualize compromissos, edite/cancele e bloqueie horários.
-            </p>
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            {barbeariaLogoUrl ? (
+              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : null}
 
-            {!podeGerirAgenda && (
-              <p className="text-[11px] text-slate-500 mt-2">
-                Seu perfil pode visualizar a agenda, mas não pode editar/cancelar
-                ou bloquear horários.
+            <div>
+              <h1 className="text-2xl font-bold text-slate-50">
+                {barbeariaNome || "Agenda do dia"}
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Visualize compromissos, edite/cancele e bloqueie horários.
               </p>
-            )}
+
+              {!podeGerirAgenda && (
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Seu perfil pode visualizar a agenda, mas não pode editar/cancelar
+                  ou bloquear horários.
+                </p>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {mostrarBotaoFinanceiro && (
               <button
                 onClick={onIrFinanceiro}

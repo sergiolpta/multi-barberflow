@@ -15,11 +15,17 @@ function MoneyInput({ value, onChange }) {
   );
 }
 
-export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar }) {
+export function AdminProdutos({
+  accessToken,
+  adminRole,
+  onVoltar,
+  barbeariaNome,
+  barbeariaLogoUrl,
+}) {
   const podeGerir = ["admin_owner", "admin_staff"].includes(adminRole);
 
   const { produtos, loading, erro, recarregar, criarProduto, atualizarProduto } =
-    useAdminProdutos({ accessToken, barbeariaId });
+    useAdminProdutos({ accessToken });
 
   const [form, setForm] = useState({
     nome: "",
@@ -68,7 +74,13 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
     try {
       setSalvando(true);
       await criarProduto(payload);
-      setForm({ nome: "", estoque_qtd: "0", preco_custo: "0", preco_venda: "0", ativo: true });
+      setForm({
+        nome: "",
+        estoque_qtd: "0",
+        preco_custo: "0",
+        preco_venda: "0",
+        ativo: true,
+      });
       setMsg("Produto criado com sucesso.");
       await recarregar();
     } catch (e2) {
@@ -117,13 +129,21 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
   async function handleEditarPrecos(p) {
     if (!podeGerir) return;
 
-    const custo = window.prompt(`Preço de custo (R$) de "${p.nome}":`, String(p.preco_custo ?? 0));
+    const custo = window.prompt(
+      `Preço de custo (R$) de "${p.nome}":`,
+      String(p.preco_custo ?? 0)
+    );
     if (custo == null) return;
-    const venda = window.prompt(`Preço de venda (R$) de "${p.nome}":`, String(p.preco_venda ?? 0));
+
+    const venda = window.prompt(
+      `Preço de venda (R$) de "${p.nome}":`,
+      String(p.preco_venda ?? 0)
+    );
     if (venda == null) return;
 
     const pc = Number(custo);
     const pv = Number(venda);
+
     if (!Number.isFinite(pc) || pc < 0 || !Number.isFinite(pv) || pv < 0) {
       alert("Preços inválidos. Use números >= 0.");
       return;
@@ -141,25 +161,48 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
       <div className="w-full max-w-5xl mx-auto space-y-6">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Produtos</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Cadastro e controle básico de estoque (sem negativo).
-            </p>
-            {!podeGerir && (
-              <p className="text-[11px] text-slate-500 mt-2">
-                Seu perfil pode visualizar, mas não pode alterar produtos.
-              </p>
-            )}
-          </div>
+        <header className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {barbeariaLogoUrl ? (
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
+                  Sem logo
+                </div>
+              )}
 
-          <button
-            onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-          >
-            Voltar ao painel
-          </button>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Painel administrativo
+                </p>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                  {barbeariaNome || "Barbearia"}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">Produtos</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cadastro e controle básico de estoque (sem negativo).
+                </p>
+
+                {!podeGerir && (
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    Seu perfil pode visualizar, mas não pode alterar produtos.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={onVoltar}
+              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+            >
+              Voltar ao painel
+            </button>
+          </div>
         </header>
 
         {msg ? (
@@ -200,6 +243,7 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
                     className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
                   />
                 </div>
+
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-400 mb-1">Custo (R$)</span>
                   <MoneyInput
@@ -207,6 +251,7 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
                     onChange={(v) => setForm((s) => ({ ...s, preco_custo: v }))}
                   />
                 </div>
+
                 <div className="flex flex-col">
                   <span className="text-[11px] text-slate-400 mb-1">Venda (R$)</span>
                   <MoneyInput
@@ -267,10 +312,16 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
                     <div>
                       <div className="font-semibold text-slate-100">{p.nome}</div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        Estoque: <span className="text-slate-200">{p.estoque_qtd}</span> •
-                        Venda: <span className="text-emerald-300">R$ {Number(p.preco_venda || 0).toFixed(2)}</span> •
-                        Custo: <span className="text-slate-300">R$ {Number(p.preco_custo || 0).toFixed(2)}</span>
+                        Estoque: <span className="text-slate-200">{p.estoque_qtd}</span> • Venda:{" "}
+                        <span className="text-emerald-300">
+                          R$ {Number(p.preco_venda || 0).toFixed(2)}
+                        </span>{" "}
+                        • Custo:{" "}
+                        <span className="text-slate-300">
+                          R$ {Number(p.preco_custo || 0).toFixed(2)}
+                        </span>
                       </div>
+
                       <div className="mt-1">
                         {p.ativo ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/30 text-emerald-100 border border-emerald-700">
@@ -292,6 +343,7 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
                       >
                         Preços
                       </button>
+
                       <button
                         onClick={() => handleAjustarEstoque(p)}
                         disabled={!podeGerir}
@@ -299,6 +351,7 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
                       >
                         Estoque
                       </button>
+
                       <button
                         onClick={() => handleToggleAtivo(p)}
                         disabled={!podeGerir}
@@ -321,4 +374,3 @@ export function AdminProdutos({ accessToken, barbeariaId, adminRole, onVoltar })
     </div>
   );
 }
-

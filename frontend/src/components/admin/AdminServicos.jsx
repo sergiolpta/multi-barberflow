@@ -2,7 +2,12 @@
 import { useState, useMemo } from "react";
 import { useAdminServicos } from "../../hooks/useAdminServicos";
 
-export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
+export function AdminServicos({
+  accessToken,
+  onVoltar,
+  barbeariaNome,
+  barbeariaLogoUrl,
+}) {
   const {
     servicos,
     loadingServicos,
@@ -10,7 +15,7 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
     criarServico,
     atualizarServico,
     desativarServico,
-  } = useAdminServicos({ accessToken, barbeariaId });
+  } = useAdminServicos({ accessToken });
 
   const [editingId, setEditingId] = useState(null);
   const [nome, setNome] = useState("");
@@ -104,6 +109,7 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
           ? "Serviço atualizado com sucesso."
           : "Serviço criado com sucesso."
       );
+
       if (!editingId) resetForm();
     } catch (err) {
       console.error("Erro inesperado ao salvar serviço:", err);
@@ -129,33 +135,56 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
     }
 
     setMensagem(
-      novoStatus ? "Serviço ativado com sucesso." : "Serviço desativado com sucesso."
+      novoStatus
+        ? "Serviço ativado com sucesso."
+        : "Serviço desativado com sucesso."
     );
 
     if (editingId === servico.id) setAtivo(novoStatus);
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-5xl">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Gestão de Serviços</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Cadastre, edite e ative/desative os serviços da barbearia.
-            </p>
-          </div>
+    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
+      <div className="w-full max-w-5xl mx-auto">
+        <header className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {barbeariaLogoUrl ? (
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
+                  Sem logo
+                </div>
+              )}
 
-          <button
-            onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-          >
-            Voltar
-          </button>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Painel administrativo
+                </p>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                  {barbeariaNome || "Barbearia"}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">Gestão de Serviços</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cadastre, edite e ative/desative os serviços da barbearia.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onVoltar}
+              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+            >
+              Voltar
+            </button>
+          </div>
         </header>
 
         <div className="grid gap-6 md:grid-cols-[1.4fr_1.6fr]">
-          {/* FORM */}
           <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-slate-100 flex items-center gap-2 text-sm">
@@ -243,12 +272,15 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
                 disabled={loadingSalvar}
                 className="mt-3 w-full text-xs px-3 py-2 rounded-lg border border-sky-500 text-sky-100 hover:bg-sky-500/10 disabled:opacity-60 transition"
               >
-                {loadingSalvar ? "Salvando..." : editingId ? "Salvar alterações" : "Criar serviço"}
+                {loadingSalvar
+                  ? "Salvando..."
+                  : editingId
+                  ? "Salvar alterações"
+                  : "Criar serviço"}
               </button>
             </form>
           </section>
 
-          {/* LISTA */}
           <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
             {erroServicos && (
               <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
@@ -272,11 +304,16 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
                   </thead>
                   <tbody>
                     {servicos.map((s) => (
-                      <tr key={s.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
+                      <tr
+                        key={s.id}
+                        className="border-b border-slate-800/60 hover:bg-slate-800/40"
+                      >
                         <td className="py-2 pr-2 text-slate-100">
                           <div className="font-medium">{s.nome}</div>
                         </td>
-                        <td className="py-2 px-2 text-right text-slate-200">{s.duracao_minutos} min</td>
+                        <td className="py-2 px-2 text-right text-slate-200">
+                          {s.duracao_minutos} min
+                        </td>
                         <td className="py-2 px-2 text-right text-emerald-400 font-semibold">
                           R$ {Number(s.preco || 0).toFixed(2)}
                         </td>
@@ -327,4 +364,3 @@ export function AdminServicos({ accessToken, barbeariaId, onVoltar }) {
     </div>
   );
 }
-

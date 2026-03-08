@@ -8,44 +8,24 @@ export const API_BASE_URL = isProd
   ? "https://api.nexushomelp.tec.br"
   : "http://localhost:3001";
 
-export const BARBEARIA_ID =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_BARBEARIA_ID) ||
-  "";
-
 /**
  * apiFetch:
  * - injeta Authorization
- * - injeta x-barbearia-id (a não ser que skipBarbeariaId=true)
+ * - NÃO injeta mais x-barbearia-id
  * - parse seguro do body
  * - tratamento de 204 (retorna null)
- * - ✅ evita 304/ETag em endpoints sensíveis (cache: no-store + headers no-cache)
- *
- * Observação: para rotas que NÃO dependem de barbearia (ex.: /me),
- * use skipBarbeariaId: true.
+ * - evita 304/ETag em endpoints sensíveis
  */
-export async function apiFetch(
-  path,
-  {
-    accessToken,
-    barbeariaId,
-    skipBarbeariaId = false,
-    ...options
-  } = {}
-) {
+export async function apiFetch(path, { accessToken, ...options } = {}) {
   const headers = new Headers(options.headers || {});
 
-  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
-
-  if (!skipBarbeariaId) {
-    const bid = barbeariaId || BARBEARIA_ID;
-    if (bid) headers.set("x-barbearia-id", bid);
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
-  // ✅ evita 304/ETag e cache agressivo do navegador/CDN
   if (!headers.get("Cache-Control")) headers.set("Cache-Control", "no-cache");
   if (!headers.get("Pragma")) headers.set("Pragma", "no-cache");
 
-  // define content-type automaticamente quando tem body (sem forçar em FormData)
   const hasBody = options.body != null;
   const isFormData =
     typeof FormData !== "undefined" && options.body instanceof FormData;
@@ -57,10 +37,9 @@ export async function apiFetch(
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
-    cache: "no-store", // ✅ impede reuso/ETag do browser nessa request
+    cache: "no-store",
   });
 
-  // 204 No Content
   if (res.status === 204) {
     if (!res.ok) {
       const err = new Error("Resposta sem conteúdo (204), mas requisição falhou.");
@@ -71,7 +50,6 @@ export async function apiFetch(
     return null;
   }
 
-  // Lê como texto e tenta JSON
   let text = "";
   try {
     text = await res.text();
@@ -102,4 +80,3 @@ export async function apiFetch(
 
   return data;
 }
-

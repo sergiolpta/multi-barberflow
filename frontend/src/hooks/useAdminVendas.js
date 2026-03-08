@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../config/api";
 
-export function useAdminVendas({ accessToken, barbeariaId }) {
+export function useAdminVendas({ accessToken }) {
   const [vendas, setVendas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(null);
@@ -13,16 +13,11 @@ export function useAdminVendas({ accessToken, barbeariaId }) {
       setVendas([]);
       return;
     }
-    if (!barbeariaId) {
-      setErro("Barbearia não identificada (falha ao carregar /me).");
-      setVendas([]);
-      return;
-    }
 
     try {
       setLoading(true);
       setErro(null);
-      const data = await apiFetch("/vendas?periodo=hoje", { accessToken, barbeariaId });
+      const data = await apiFetch("/vendas?periodo=hoje", { accessToken });
       setVendas(Array.isArray(data?.vendas) ? data.vendas : Array.isArray(data) ? data : []);
     } catch (e) {
       setErro(e?.message || "Erro ao carregar vendas.");
@@ -30,7 +25,7 @@ export function useAdminVendas({ accessToken, barbeariaId }) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, barbeariaId]);
+  }, [accessToken]);
 
   useEffect(() => {
     carregarVendasHoje();
@@ -40,7 +35,6 @@ export function useAdminVendas({ accessToken, barbeariaId }) {
     const data = await apiFetch("/vendas", {
       method: "POST",
       accessToken,
-      barbeariaId,
       body: JSON.stringify({ itens, profissional_id }),
     });
     return data;
@@ -54,4 +48,3 @@ export function useAdminVendas({ accessToken, barbeariaId }) {
     registrarVenda,
   };
 }
-

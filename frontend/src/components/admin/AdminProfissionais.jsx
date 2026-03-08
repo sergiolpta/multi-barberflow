@@ -13,14 +13,19 @@ function formatPct(v) {
   return `${n.toFixed(2)}%`;
 }
 
-export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
+export function AdminProfissionais({
+  accessToken,
+  onVoltar,
+  barbeariaNome,
+  barbeariaLogoUrl,
+}) {
   const {
     profissionais,
     loadingProfissionais,
     erroProfissionais,
     criarProfissional,
     atualizarProfissional,
-  } = useAdminProfissionais({ accessToken, barbeariaId });
+  } = useAdminProfissionais({ accessToken });
 
   const [editingId, setEditingId] = useState(null);
   const [nome, setNome] = useState("");
@@ -34,12 +39,11 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
   const [erroForm, setErroForm] = useState(null);
   const [loadingSalvar, setLoadingSalvar] = useState(false);
 
-  // painel comissões serviço
   const [selectedProfId, setSelectedProfId] = useState(null);
   const [loadingServ, setLoadingServ] = useState(false);
   const [erroServ, setErroServ] = useState("");
-  const [itensServ, setItensServ] = useState([]); // [{servico_id, servico_nome, preco, comissao_pct_vigente}]
-  const [draftPct, setDraftPct] = useState({}); // servico_id -> pct string
+  const [itensServ, setItensServ] = useState([]);
+  const [draftPct, setDraftPct] = useState({});
 
   const profissionalEmEdicao = useMemo(
     () => profissionais.find((p) => p.id === editingId) || null,
@@ -110,7 +114,12 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
         return;
       }
 
-      setMensagem(editingId ? "Profissional atualizado com sucesso." : "Profissional criado com sucesso.");
+      setMensagem(
+        editingId
+          ? "Profissional atualizado com sucesso."
+          : "Profissional criado com sucesso."
+      );
+
       if (!editingId) resetForm();
     } catch (err) {
       console.error("Erro inesperado ao salvar profissional:", err);
@@ -128,11 +137,19 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
     const resp = await atualizarProfissional(prof.id, { ativo: novoStatus });
 
     if (!resp.ok) {
-      setErroForm(resp.message || `Não foi possível ${novoStatus ? "ativar" : "desativar"} o profissional.`);
+      setErroForm(
+        resp.message ||
+          `Não foi possível ${novoStatus ? "ativar" : "desativar"} o profissional.`
+      );
       return;
     }
 
-    setMensagem(novoStatus ? "Profissional ativado com sucesso." : "Profissional desativado com sucesso.");
+    setMensagem(
+      novoStatus
+        ? "Profissional ativado com sucesso."
+        : "Profissional desativado com sucesso."
+    );
+
     if (editingId === prof.id) setAtivo(novoStatus);
   }
 
@@ -148,18 +165,17 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
         const resp = await apiFetch(`/profissionais/${id}/comissoes-servico`, {
           method: "GET",
           accessToken,
-          barbeariaId,
-          // ✅ corta 304/ETag e reduz flicker
           cache: "no-store",
         });
 
         const itens = resp?.itens || [];
         setItensServ(itens);
 
-        // prepara draft
         const draft = {};
         for (const it of itens) {
-          draft[it.servico_id] = String(Number(it.comissao_pct_vigente ?? 0).toFixed(2));
+          draft[it.servico_id] = String(
+            Number(it.comissao_pct_vigente ?? 0).toFixed(2)
+          );
         }
         setDraftPct(draft);
       } catch (e) {
@@ -170,7 +186,7 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
         setLoadingServ(false);
       }
     },
-    [accessToken, barbeariaId]
+    [accessToken]
   );
 
   useEffect(() => {
@@ -188,13 +204,11 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
       const regras = Object.entries(draftPct).map(([servico_id, pct]) => ({
         servico_id,
         comissao_pct: Number(pct ?? 0),
-        // vigencia_inicio: "2025-12-01"  // se quiser controlar por data depois, a gente abre isso
       }));
 
       await apiFetch(`/profissionais/${selectedProfId}/comissoes-servico`, {
         method: "PUT",
         accessToken,
-        barbeariaId,
         cache: "no-store",
         body: JSON.stringify({ regras }),
       });
@@ -209,33 +223,47 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-6xl">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-50">Profissionais</h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Somente owner. Aqui você cadastra profissionais e define comissões base.
-            </p>
-          </div>
+    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
+      <div className="w-full max-w-6xl mx-auto">
+        <header className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {barbeariaLogoUrl ? (
+                <img
+                  src={barbeariaLogoUrl}
+                  alt={barbeariaNome || "Logo da barbearia"}
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
+                  Sem logo
+                </div>
+              )}
 
-          <button
-            onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-          >
-            Voltar ao painel
-          </button>
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Painel administrativo
+                </p>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                  {barbeariaNome || "Barbearia"}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">Profissionais</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Somente owner. Aqui você cadastra profissionais e define comissões base.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onVoltar}
+              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+            >
+              Voltar ao painel
+            </button>
+          </div>
         </header>
 
-        {!barbeariaId ? (
-          <div className="bg-slate-800/40 border border-slate-700/60 text-slate-200 text-xs px-3 py-2 rounded-lg mb-4">
-            Carregando contexto da barbearia (barbeariaId)…
-          </div>
-        ) : null}
-
-        {/* ✅ Layout fix: SEM terceira coluna */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* COLUNA ESQUERDA: FORM */}
           <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-slate-100 flex items-center gap-2 text-sm">
@@ -336,14 +364,16 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
                 disabled={loadingSalvar}
                 className="mt-3 w-full text-xs px-3 py-2 rounded-lg border border-sky-500 text-sky-100 hover:bg-sky-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
               >
-                {loadingSalvar ? "Salvando..." : editingId ? "Salvar alterações" : "Criar profissional"}
+                {loadingSalvar
+                  ? "Salvando..."
+                  : editingId
+                  ? "Salvar alterações"
+                  : "Criar profissional"}
               </button>
             </form>
           </section>
 
-          {/* COLUNA DIREITA: LISTA + PAINEL (ABAIXO) */}
           <section className="flex flex-col gap-6">
-            {/* LISTA */}
             <div className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
               {erroProfissionais && (
                 <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
@@ -365,11 +395,15 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
                     </thead>
                     <tbody>
                       {profissionais.map((p) => (
-                        <tr key={p.id} className="border-b border-slate-800/60 hover:bg-slate-800/40">
+                        <tr
+                          key={p.id}
+                          className="border-b border-slate-800/60 hover:bg-slate-800/40"
+                        >
                           <td className="py-2 pr-2 align-top text-slate-100">
                             <div className="font-medium">{p.nome}</div>
                             <div className="text-[10px] text-slate-400 mt-1">
-                              Pacote: {formatPct(p.comissao_pacote_pct)} · PDV: {formatPct(p.comissao_pdv_pct)}
+                              Pacote: {formatPct(p.comissao_pacote_pct)} · PDV:{" "}
+                              {formatPct(p.comissao_pdv_pct)}
                             </div>
                           </td>
                           <td className="py-2 px-2 text-center align-top">
@@ -427,13 +461,14 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
               )}
             </div>
 
-            {/* PAINEL DE COMISSÕES POR SERVIÇO (ABAIXO, não lateral) */}
             <div className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-semibold text-slate-100 text-sm">Comissões por serviço</h3>
                   <p className="text-[11px] text-slate-400">
-                    {profissionalSelecionado ? profissionalSelecionado.nome : "Selecione um profissional na lista."}
+                    {profissionalSelecionado
+                      ? profissionalSelecionado.nome
+                      : "Selecione um profissional na lista."}
                   </p>
                 </div>
 
@@ -464,7 +499,9 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
               ) : null}
 
               {!selectedProfId ? (
-                <div className="text-[11px] text-slate-400">Escolha um profissional para editar as comissões.</div>
+                <div className="text-[11px] text-slate-400">
+                  Escolha um profissional para editar as comissões.
+                </div>
               ) : loadingServ ? (
                 <div className="text-[11px] text-slate-400">Carregando comissões…</div>
               ) : (
@@ -491,7 +528,10 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
                               max="100"
                               value={draftPct[it.servico_id] ?? "0.00"}
                               onChange={(e) =>
-                                setDraftPct((prev) => ({ ...prev, [it.servico_id]: e.target.value }))
+                                setDraftPct((prev) => ({
+                                  ...prev,
+                                  [it.servico_id]: e.target.value,
+                                }))
                               }
                               className="w-28 bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
                             />
@@ -507,8 +547,8 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
                   </table>
 
                   <p className="text-[10px] text-slate-400 mt-3">
-                    Nota: por enquanto salvamos uma regra “vigente a partir de hoje”. Se você quiser vigência por data,
-                    a gente adiciona inputs de vigência e histórico.
+                    Nota: por enquanto salvamos uma regra vigente a partir de hoje. Se você
+                    quiser vigência por data, a gente adiciona inputs de vigência e histórico.
                   </p>
                 </div>
               )}
@@ -519,4 +559,3 @@ export function AdminProfissionais({ accessToken, barbeariaId, onVoltar }) {
     </div>
   );
 }
-
