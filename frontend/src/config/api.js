@@ -1,12 +1,16 @@
 // src/config/api.js
 
-const isProd =
-  typeof window !== "undefined" &&
-  window.location.hostname === "agenda.nexushomelp.tec.br";
+const hostname =
+  typeof window !== "undefined" ? window.location.hostname : "";
+
+const isProd = hostname === "agenda.nexushomelp.tec.br";
+const isHml = hostname === "agenda-hml.nexushomelp.tec.br";
 
 export const API_BASE_URL = isProd
   ? "https://api.nexushomelp.tec.br"
-  : "http://localhost:3001";
+  : isHml
+    ? "https://api-hml.nexushomelp.tec.br"
+    : "http://localhost:3001";
 
 /**
  * apiFetch:

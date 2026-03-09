@@ -19,27 +19,39 @@ const router = express.Router();
 router.get("/", getProfissionais);
 
 // ----------------------- Rotas admin (protegidas) -----------------------
-// ✅ Agora: SOMENTE OWNER
-const ownerAccess = [authAdminMiddleware, requireRole(["admin_owner"])];
+
+// Owner OU Staff
+const staffOrOwnerAccess = [
+  authAdminMiddleware,
+  requireRole(["admin_owner", "admin_staff"]),
+];
+
+// Somente Owner
+const ownerAccess = [
+  authAdminMiddleware,
+  requireRole(["admin_owner"]),
+];
+
+// ----------------------- Profissionais -----------------------
 
 // GET /profissionais/admin → lista todos (ativos e inativos)
-router.get("/admin", ...ownerAccess, getProfissionaisAdmin);
+router.get("/admin", ...staffOrOwnerAccess, getProfissionaisAdmin);
 
 // POST /profissionais → cria novo profissional
-router.post("/", ...ownerAccess, createProfissional);
+router.post("/", ...staffOrOwnerAccess, createProfissional);
 
 // PUT /profissionais/:id → atualiza profissional
-router.put("/:id", ...ownerAccess, updateProfissional);
+router.put("/:id", ...staffOrOwnerAccess, updateProfissional);
 
 // DELETE /profissionais/:id → soft delete (ativo=false)
-router.delete("/:id", ...ownerAccess, deleteProfissional);
+router.delete("/:id", ...staffOrOwnerAccess, deleteProfissional);
 
-// ✅ Comissões por serviço (owner-only)
+// ----------------------- Comissões por serviço (owner-only) -----------------------
+
 // GET  /profissionais/:id/comissoes-servico
 router.get("/:id/comissoes-servico", ...ownerAccess, getComissoesServicoCtrl);
 
-// PUT /profissionais/:id/comissoes-servico  body: { regras: [{ servico_id, comissao_pct, vigencia_inicio?, vigencia_fim?, ativo? }] }
+// PUT /profissionais/:id/comissoes-servico
 router.put("/:id/comissoes-servico", ...ownerAccess, upsertComissoesServicoCtrl);
 
 export default router;
-

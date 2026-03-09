@@ -42,9 +42,9 @@ export function useAdminAuth() {
   }, [limparPerfil]);
 
   const carregarPerfilAdmin = useCallback(
-    async (token) => {
-      const tokenUsado = token || accessToken;
-      if (!tokenUsado) return;
+  async (token) => {
+    const tokenUsado = token;
+    if (!tokenUsado) return;
 
       const mySeq = ++reqSeq.current;
 
@@ -81,7 +81,7 @@ export function useAdminAuth() {
         setErro(err?.message || "Não foi possível carregar perfil admin (/me).");
       }
     },
-    [accessToken, limparSessaoLocal, limparPerfil]
+    [limparSessaoLocal, limparPerfil]
   );
 
   // Carrega sessão inicial

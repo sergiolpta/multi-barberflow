@@ -1,6 +1,6 @@
 // src/hooks/useAgendamentoFlow.js
 import { useEffect, useState, useCallback } from "react";
-import { apiFetch, BARBEARIA_ID } from "../config/api";
+import { apiFetch } from "../config/api";
 
 export function useAgendamentoFlow() {
   // etapa atual (1 a 5)
@@ -55,10 +55,7 @@ export function useAgendamentoFlow() {
     async function loadInitialData() {
       setError("");
 
-      if (!BARBEARIA_ID) {
-        setError("BARBEARIA_ID não configurado no frontend (VITE_BARBEARIA_ID).");
-        return;
-      }
+      
 
       try {
         setLoadingProfissionais(true);
@@ -157,9 +154,7 @@ export function useAgendamentoFlow() {
       setAgendando(true);
       setError("");
 
-      if (!BARBEARIA_ID) {
-        throw new Error("BARBEARIA_ID não configurado no frontend (VITE_BARBEARIA_ID).");
-      }
+      
 
       if (
         !profissionalSelecionado ||
