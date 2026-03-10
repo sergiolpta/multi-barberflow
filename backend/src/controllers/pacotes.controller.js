@@ -1,4 +1,3 @@
-// backend/src/controllers/pacotes.controller.js
 import { supabase } from "../lib/supabase.js";
 import { calcularComissaoPacote } from "../services/comissoes.service.js";
 
@@ -19,9 +18,43 @@ function parseDiaSemana(value) {
   return n;
 }
 
-// ---------------------------------------------------------------------
-// Helpers (pagamentos) — competência = 1º dia do mês
-// ---------------------------------------------------------------------
+function normalizeHoraInicio(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+
+  // aceita HH:MM ou HH:MM:SS
+  if (/^\d{2}:\d{2}$/.test(s)) return `${s}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s;
+
+  return null;
+}
+
+function parseDuracao(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function parseDateOnly(value) {
+  const s = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return s;
+}
+
+function sortHorarios(horarios) {
+  return [...(horarios || [])].sort((a, b) => {
+    const diaA = Number(a?.dia_semana ?? 99);
+    const diaB = Number(b?.dia_semana ?? 99);
+    if (diaA !== diaB) return diaA - diaB;
+
+    const horaA = String(a?.hora_inicio || "");
+    const horaB = String(b?.hora_inicio || "");
+    return horaA.localeCompare(horaB);
+  });
+}
+
 function normalizeCompetencia(input) {
   const s = String(input || "").trim();
   if (!s) return null;
@@ -39,6 +72,93 @@ function currentCompetenciaISO() {
   return `${yyyy}-${mm}-01`;
 }
 
+function normalizeHorariosInput(horarios) {
+  if (!Array.isArray(horarios) || horarios.length === 0) {
+    return {
+      ok: false,
+      error: "HORARIOS_OBRIGATORIOS",
+      message: "Envie horarios com pelo menos 1 item.",
+    };
+  }
+
+  const out = [];
+  const seen = new Set();
+
+  for (let i = 0; i < horarios.length; i += 1) {
+    const item = horarios[i] || {};
+
+    const diaSemana = parseDiaSemana(item.dia_semana);
+    if (diaSemana === null) {
+      return {
+        ok: false,
+        error: "DIA_SEMANA_INVALIDO",
+        message: `horarios[${i}].dia_semana deve ser um número de 0 (domingo) a 6 (sábado).`,
+      };
+    }
+
+    const horaInicio = normalizeHoraInicio(item.hora_inicio);
+    if (!horaInicio) {
+      return {
+        ok: false,
+        error: "HORA_INICIO_INVALIDA",
+        message: `horarios[${i}].hora_inicio inválida (use HH:MM ou HH:MM:SS).`,
+      };
+    }
+
+    const duracao = parseDuracao(item.duracao_minutos);
+    if (duracao === null) {
+      return {
+        ok: false,
+        error: "DURACAO_INVALIDA",
+        message: `horarios[${i}].duracao_minutos deve ser um número maior que zero.`,
+      };
+    }
+
+    const key = `${diaSemana}|${horaInicio}|${duracao}`;
+    if (seen.has(key)) {
+      return {
+        ok: false,
+        error: "HORARIOS_DUPLICADOS",
+        message: `Há horários duplicados no payload (dia ${diaSemana}, hora ${horaInicio}, duração ${duracao}).`,
+      };
+    }
+    seen.add(key);
+
+    out.push({
+      dia_semana: diaSemana,
+      hora_inicio: horaInicio,
+      duracao_minutos: duracao,
+      ativo: item.ativo === undefined ? true : !!item.ativo,
+    });
+  }
+
+  return {
+    ok: true,
+    horarios: sortHorarios(out),
+  };
+}
+
+function mapPacoteRow(row) {
+  const horarios = sortHorarios(
+    Array.isArray(row?.horarios)
+      ? row.horarios.map((h) => ({
+          id: h.id,
+          profissional_id: h.profissional_id,
+          dia_semana: h.dia_semana,
+          hora_inicio: h.hora_inicio,
+          duracao_minutos: h.duracao_minutos,
+          ativo: h.ativo,
+          created_at: h.created_at,
+        }))
+      : []
+  );
+
+  return {
+    ...row,
+    horarios,
+  };
+}
+
 /**
  * GET /pacotes  (admin)
  */
@@ -53,8 +173,7 @@ export async function listarPacotes(req, res) {
 
     let query = supabase
       .from("pacotes")
-      .select(
-        `
+      .select(`
         id,
         cliente_id,
         cliente_nome,
@@ -70,9 +189,17 @@ export async function listarPacotes(req, res) {
         dia_vencimento,
         cobranca_ativa,
         created_at,
-        profissional:profissionais ( id, nome )
-      `
-      )
+        profissional:profissionais ( id, nome ),
+        horarios:pacote_horarios (
+          id,
+          profissional_id,
+          dia_semana,
+          hora_inicio,
+          duracao_minutos,
+          ativo,
+          created_at
+        )
+      `)
       .eq("barbearia_id", barbeariaId)
       .order("dia_semana", { ascending: true })
       .order("hora_inicio", { ascending: true });
@@ -92,7 +219,7 @@ export async function listarPacotes(req, res) {
       });
     }
 
-    return res.status(200).json(data || []);
+    return res.status(200).json((data || []).map(mapPacoteRow));
   } catch (err) {
     console.error("Erro inesperado listarPacotes:", err);
     return res.status(500).json({
@@ -104,6 +231,27 @@ export async function listarPacotes(req, res) {
 
 /**
  * POST /pacotes  (admin)
+ *
+ * Novo payload esperado:
+ * {
+ *   cliente_id?,
+ *   cliente_nome?,
+ *   profissional_id,
+ *   vigencia_inicio,
+ *   vigencia_fim?,
+ *   ativo?,
+ *   observacoes?,
+ *   preco_mensal?,
+ *   dia_vencimento?,
+ *   cobranca_ativa?,
+ *   horarios: [
+ *     { dia_semana, hora_inicio, duracao_minutos }
+ *   ]
+ * }
+ *
+ * Compatibilidade:
+ * se horarios não vier, tenta montar 1 horário a partir de:
+ * dia_semana, hora_inicio, duracao_minutos
  */
 export async function criarPacote(req, res) {
   try {
@@ -126,55 +274,37 @@ export async function criarPacote(req, res) {
       preco_mensal,
       dia_vencimento,
       cobranca_ativa,
+      horarios,
     } = req.body || {};
 
-    if (
-      !profissional_id ||
-      dia_semana === undefined ||
-      !hora_inicio ||
-      !duracao_minutos ||
-      !vigencia_inicio
-    ) {
+    if (!profissional_id || !vigencia_inicio) {
       return res.status(400).json({
         error: "CAMPOS_OBRIGATORIOS",
-        message:
-          "profissional_id, dia_semana, hora_inicio, duracao_minutos e vigencia_inicio são obrigatórios.",
+        message: "profissional_id e vigencia_inicio são obrigatórios.",
       });
     }
 
-    const diaSemanaParsed = parseDiaSemana(dia_semana);
-    if (diaSemanaParsed === null) {
-      return res.status(400).json({
-        error: "DIA_SEMANA_INVALIDO",
-        message: "dia_semana deve ser um número de 0 (domingo) a 6 (sábado).",
-      });
-    }
-
-    const duracao = Number(duracao_minutos);
-    if (!Number.isFinite(duracao) || duracao <= 0) {
-      return res.status(400).json({
-        error: "DURACAO_INVALIDA",
-        message: "duracao_minutos deve ser um número maior que zero.",
-      });
-    }
-
-    const vigInicio = new Date(`${vigencia_inicio}T00:00:00`);
-    if (Number.isNaN(vigInicio.getTime())) {
+    const vigInicio = parseDateOnly(vigencia_inicio);
+    if (!vigInicio) {
       return res.status(400).json({
         error: "VIGENCIA_INICIO_INVALIDA",
         message: "vigencia_inicio inválida (use formato YYYY-MM-DD).",
       });
     }
 
+    let vigFim = null;
     if (vigencia_fim) {
-      const vigFim = new Date(`${vigencia_fim}T00:00:00`);
-      if (Number.isNaN(vigFim.getTime())) {
+      vigFim = parseDateOnly(vigencia_fim);
+      if (!vigFim) {
         return res.status(400).json({
           error: "VIGENCIA_FIM_INVALIDA",
           message: "vigencia_fim inválida (use formato YYYY-MM-DD).",
         });
       }
-      if (vigFim.getTime() < vigInicio.getTime()) {
+
+      const dIni = new Date(`${vigInicio}T00:00:00`);
+      const dFim = new Date(`${vigFim}T00:00:00`);
+      if (dFim.getTime() < dIni.getTime()) {
         return res.status(400).json({
           error: "VIGENCIA_INCONSISTENTE",
           message: "vigencia_fim não pode ser anterior a vigencia_inicio.",
@@ -206,38 +336,115 @@ export async function criarPacote(req, res) {
       });
     }
 
-    const { data, error } = await supabase
+    const horariosPayload =
+      Array.isArray(horarios) && horarios.length > 0
+        ? horarios
+        : [
+            {
+              dia_semana,
+              hora_inicio,
+              duracao_minutos,
+            },
+          ];
+
+    const horariosParsed = normalizeHorariosInput(horariosPayload);
+    if (!horariosParsed.ok) {
+      return res.status(400).json({
+        error: horariosParsed.error,
+        message: horariosParsed.message,
+      });
+    }
+
+    const horariosNormalizados = horariosParsed.horarios;
+    const primeiroHorario = horariosNormalizados[0];
+
+    const { data: pacoteCriado, error: errorPacote } = await supabase
       .from("pacotes")
       .insert({
         barbearia_id: barbeariaId,
         cliente_id: cliente_id || null,
         cliente_nome: cliente_nome || null,
         profissional_id,
-        dia_semana: diaSemanaParsed,
-        hora_inicio,
-        duracao_minutos: duracao,
-        vigencia_inicio,
-        vigencia_fim: vigencia_fim || null,
+        dia_semana: primeiroHorario.dia_semana,
+        hora_inicio: primeiroHorario.hora_inicio,
+        duracao_minutos: primeiroHorario.duracao_minutos,
+        vigencia_inicio: vigInicio,
+        vigencia_fim: vigFim,
         ativo: ativo === undefined ? true : !!ativo,
         observacoes: observacoes || null,
         preco_mensal: precoMensalNum,
         dia_vencimento: diaVenc,
         cobranca_ativa: cobranca_ativa === undefined ? true : !!cobranca_ativa,
       })
-      .select(
-        "id, cliente_id, cliente_nome, profissional_id, dia_semana, hora_inicio, duracao_minutos, vigencia_inicio, vigencia_fim, ativo, observacoes, preco_mensal, dia_vencimento, cobranca_ativa"
-      )
+      .select(`
+        id,
+        cliente_id,
+        cliente_nome,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        vigencia_inicio,
+        vigencia_fim,
+        ativo,
+        observacoes,
+        preco_mensal,
+        dia_vencimento,
+        cobranca_ativa,
+        created_at,
+        profissional:profissionais ( id, nome )
+      `)
       .single();
 
-    if (error) {
-      console.error("Erro Supabase criarPacote:", error);
+    if (errorPacote) {
+      console.error("Erro Supabase criarPacote:", errorPacote);
       return res.status(500).json({
         error: "ERRO_SUPABASE",
         message: "Não foi possível criar o pacote.",
       });
     }
 
-    return res.status(201).json(data);
+    const horariosInsert = horariosNormalizados.map((h) => ({
+      barbearia_id: barbeariaId,
+      pacote_id: pacoteCriado.id,
+      profissional_id,
+      dia_semana: h.dia_semana,
+      hora_inicio: h.hora_inicio,
+      duracao_minutos: h.duracao_minutos,
+      ativo: ativo === undefined ? true : !!ativo,
+    }));
+
+    const { data: horariosCriados, error: errorHorarios } = await supabase
+      .from("pacote_horarios")
+      .insert(horariosInsert)
+      .select(`
+        id,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        ativo,
+        created_at
+      `);
+
+    if (errorHorarios) {
+      console.error("Erro Supabase criar horários do pacote:", errorHorarios);
+
+      // compensação simples para não deixar pacote órfão
+      await supabase.from("pacotes").delete().eq("id", pacoteCriado.id).eq("barbearia_id", barbeariaId);
+
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Não foi possível criar os horários do pacote.",
+      });
+    }
+
+    return res.status(201).json(
+      mapPacoteRow({
+        ...pacoteCriado,
+        horarios: horariosCriados || [],
+      })
+    );
   } catch (err) {
     console.error("Erro inesperado criarPacote:", err);
     return res.status(500).json({
@@ -249,6 +456,10 @@ export async function criarPacote(req, res) {
 
 /**
  * PUT /pacotes/:id  (admin)
+ *
+ * Se vier horarios, substitui todos os horários do pacote.
+ * Se vier apenas profissional_id (sem horarios), sincroniza o profissional
+ * em todos os horários existentes.
  */
 export async function atualizarPacote(req, res) {
   try {
@@ -267,6 +478,7 @@ export async function atualizarPacote(req, res) {
       preco_mensal,
       dia_vencimento,
       cobranca_ativa,
+      horarios,
     } = req.body || {};
 
     const barbeariaId = getBarbeariaId(req);
@@ -281,73 +493,103 @@ export async function atualizarPacote(req, res) {
       });
     }
 
+    const { data: pacoteAtual, error: pacoteAtualErr } = await supabase
+      .from("pacotes")
+      .select(`
+        id,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        vigencia_inicio,
+        vigencia_fim,
+        ativo
+      `)
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .single();
+
+    if (pacoteAtualErr) {
+      console.error("Erro Supabase buscar pacote atual:", pacoteAtualErr);
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Não foi possível carregar o pacote atual.",
+      });
+    }
+
+    if (!pacoteAtual) {
+      return res.status(404).json({
+        error: "PACOTE_NAO_ENCONTRADO",
+        message: "Pacote não encontrado para esta barbearia.",
+      });
+    }
+
     const updateData = {};
 
     if (cliente_id !== undefined) updateData.cliente_id = cliente_id || null;
     if (cliente_nome !== undefined) updateData.cliente_nome = cliente_nome || null;
-    if (profissional_id !== undefined) updateData.profissional_id = profissional_id;
-    if (hora_inicio !== undefined) updateData.hora_inicio = hora_inicio;
     if (observacoes !== undefined) updateData.observacoes = observacoes || null;
+    if (ativo !== undefined) updateData.ativo = !!ativo;
+    if (cobranca_ativa !== undefined) updateData.cobranca_ativa = !!cobranca_ativa;
 
-    if (dia_semana !== undefined) {
-      const diaParsed = parseDiaSemana(dia_semana);
-      if (diaParsed === null) {
-        return res.status(400).json({
-          error: "DIA_SEMANA_INVALIDO",
-          message: "dia_semana deve ser um número de 0 (domingo) a 6 (sábado).",
-        });
-      }
-      updateData.dia_semana = diaParsed;
-    }
-
-    if (duracao_minutos !== undefined) {
-      const dur = Number(duracao_minutos);
-      if (!Number.isFinite(dur) || dur <= 0) {
-        return res.status(400).json({
-          error: "DURACAO_INVALIDA",
-          message: "duracao_minutos deve ser um número maior que zero.",
-        });
-      }
-      updateData.duracao_minutos = dur;
+    if (profissional_id !== undefined) {
+      updateData.profissional_id = profissional_id;
     }
 
     if (vigencia_inicio !== undefined) {
-      const d = new Date(`${vigencia_inicio}T00:00:00`);
-      if (Number.isNaN(d.getTime())) {
+      const d = parseDateOnly(vigencia_inicio);
+      if (!d) {
         return res.status(400).json({
           error: "VIGENCIA_INICIO_INVALIDA",
           message: "vigencia_inicio inválida (use YYYY-MM-DD).",
         });
       }
-      updateData.vigencia_inicio = vigencia_inicio;
+      updateData.vigencia_inicio = d;
     }
 
     if (vigencia_fim !== undefined) {
-      if (vigencia_fim === null) {
+      if (vigencia_fim === null || vigencia_fim === "") {
         updateData.vigencia_fim = null;
       } else {
-        const df = new Date(`${vigencia_fim}T00:00:00`);
-        if (Number.isNaN(df.getTime())) {
+        const d = parseDateOnly(vigencia_fim);
+        if (!d) {
           return res.status(400).json({
             error: "VIGENCIA_FIM_INVALIDA",
             message: "vigencia_fim inválida (use YYYY-MM-DD).",
           });
         }
-        updateData.vigencia_fim = vigencia_fim;
+        updateData.vigencia_fim = d;
       }
     }
 
-    if (ativo !== undefined) updateData.ativo = !!ativo;
+    const vigInicioCheck = updateData.vigencia_inicio || pacoteAtual.vigencia_inicio;
+    const vigFimCheck =
+      updateData.vigencia_fim !== undefined ? updateData.vigencia_fim : pacoteAtual.vigencia_fim;
 
-    if (preco_mensal !== undefined) {
-      const n = Number(preco_mensal);
-      if (!Number.isFinite(n) || n < 0) {
+    if (vigInicioCheck && vigFimCheck) {
+      const dIni = new Date(`${vigInicioCheck}T00:00:00`);
+      const dFim = new Date(`${vigFimCheck}T00:00:00`);
+      if (dFim.getTime() < dIni.getTime()) {
         return res.status(400).json({
-          error: "PRECO_INVALIDO",
-          message: "preco_mensal inválido (>= 0).",
+          error: "VIGENCIA_INCONSISTENTE",
+          message: "vigencia_fim não pode ser anterior a vigencia_inicio.",
         });
       }
-      updateData.preco_mensal = n;
+    }
+
+    if (preco_mensal !== undefined) {
+      if (preco_mensal === null || preco_mensal === "") {
+        updateData.preco_mensal = 0;
+      } else {
+        const n = Number(preco_mensal);
+        if (!Number.isFinite(n) || n < 0) {
+          return res.status(400).json({
+            error: "PRECO_INVALIDO",
+            message: "preco_mensal inválido (>= 0).",
+          });
+        }
+        updateData.preco_mensal = n;
+      }
     }
 
     if (dia_vencimento !== undefined) {
@@ -365,41 +607,205 @@ export async function atualizarPacote(req, res) {
       }
     }
 
-    if (cobranca_ativa !== undefined) updateData.cobranca_ativa = !!cobranca_ativa;
+    // compatibilidade legada:
+    // se não vier horarios, ainda aceitamos dia_semana/hora_inicio/duracao_minutos
+    let horariosNormalizados = null;
 
-    if (Object.keys(updateData).length === 0) {
+    if (Array.isArray(horarios)) {
+      const parsed = normalizeHorariosInput(horarios);
+      if (!parsed.ok) {
+        return res.status(400).json({
+          error: parsed.error,
+          message: parsed.message,
+        });
+      }
+      horariosNormalizados = parsed.horarios;
+    } else if (
+      dia_semana !== undefined ||
+      hora_inicio !== undefined ||
+      duracao_minutos !== undefined
+    ) {
+      const parsed = normalizeHorariosInput([
+        {
+          dia_semana: dia_semana !== undefined ? dia_semana : pacoteAtual.dia_semana,
+          hora_inicio: hora_inicio !== undefined ? hora_inicio : pacoteAtual.hora_inicio,
+          duracao_minutos:
+            duracao_minutos !== undefined ? duracao_minutos : pacoteAtual.duracao_minutos,
+        },
+      ]);
+
+      if (!parsed.ok) {
+        return res.status(400).json({
+          error: parsed.error,
+          message: parsed.message,
+        });
+      }
+      horariosNormalizados = parsed.horarios;
+    }
+
+    // mantém campos legados do pai coerentes com o primeiro horário
+    if (horariosNormalizados && horariosNormalizados.length > 0) {
+      const primeiroHorario = horariosNormalizados[0];
+      updateData.dia_semana = primeiroHorario.dia_semana;
+      updateData.hora_inicio = primeiroHorario.hora_inicio;
+      updateData.duracao_minutos = primeiroHorario.duracao_minutos;
+    }
+
+    if (Object.keys(updateData).length === 0 && horariosNormalizados === null) {
       return res.status(400).json({
         error: "SEM_CAMPOS_PARA_ATUALIZAR",
         message: "Nenhum campo válido foi enviado para atualização.",
       });
     }
 
-    const { data, error } = await supabase
+    const { data: pacoteAtualizado, error: errorPacote } = await supabase
       .from("pacotes")
       .update(updateData)
       .eq("id", id)
       .eq("barbearia_id", barbeariaId)
-      .select(
-        "id, cliente_id, cliente_nome, profissional_id, dia_semana, hora_inicio, duracao_minutos, vigencia_inicio, vigencia_fim, ativo, observacoes, preco_mensal, dia_vencimento, cobranca_ativa"
-      )
+      .select(`
+        id,
+        cliente_id,
+        cliente_nome,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        vigencia_inicio,
+        vigencia_fim,
+        ativo,
+        observacoes,
+        preco_mensal,
+        dia_vencimento,
+        cobranca_ativa,
+        created_at,
+        profissional:profissionais ( id, nome )
+      `)
       .single();
 
-    if (error) {
-      console.error("Erro Supabase atualizarPacote:", error);
+    if (errorPacote) {
+      console.error("Erro Supabase atualizarPacote:", errorPacote);
       return res.status(500).json({
         error: "ERRO_SUPABASE",
         message: "Não foi possível atualizar o pacote.",
       });
     }
 
-    if (!data) {
+    if (!pacoteAtualizado) {
       return res.status(404).json({
         error: "PACOTE_NAO_ENCONTRADO",
         message: "Pacote não encontrado para esta barbearia.",
       });
     }
 
-    return res.status(200).json(data);
+    const profissionalFinal = pacoteAtualizado.profissional_id;
+
+    if (horariosNormalizados) {
+      const { error: deleteErr } = await supabase
+        .from("pacote_horarios")
+        .delete()
+        .eq("pacote_id", id)
+        .eq("barbearia_id", barbeariaId);
+
+      if (deleteErr) {
+        console.error("Erro Supabase remover horários antigos:", deleteErr);
+        return res.status(500).json({
+          error: "ERRO_SUPABASE",
+          message: "Pacote atualizado, mas não foi possível substituir os horários antigos.",
+        });
+      }
+
+      const rows = horariosNormalizados.map((h) => ({
+        barbearia_id: barbeariaId,
+        pacote_id: id,
+        profissional_id: profissionalFinal,
+        dia_semana: h.dia_semana,
+        hora_inicio: h.hora_inicio,
+        duracao_minutos: h.duracao_minutos,
+        ativo: pacoteAtualizado.ativo,
+      }));
+
+      const { data: horariosCriados, error: insertErr } = await supabase
+        .from("pacote_horarios")
+        .insert(rows)
+        .select(`
+          id,
+          profissional_id,
+          dia_semana,
+          hora_inicio,
+          duracao_minutos,
+          ativo,
+          created_at
+        `);
+
+      if (insertErr) {
+        console.error("Erro Supabase recriar horários:", insertErr);
+        return res.status(500).json({
+          error: "ERRO_SUPABASE",
+          message: "Pacote atualizado, mas houve erro ao recriar os horários.",
+        });
+      }
+
+      return res.status(200).json(
+        mapPacoteRow({
+          ...pacoteAtualizado,
+          horarios: horariosCriados || [],
+        })
+      );
+    }
+
+    // se só mudou profissional/ativo e não veio horarios,
+    // sincroniza isso nos horários existentes
+    if (profissional_id !== undefined || ativo !== undefined) {
+      const horariosPatch = {};
+      if (profissional_id !== undefined) horariosPatch.profissional_id = profissionalFinal;
+      if (ativo !== undefined) horariosPatch.ativo = !!ativo;
+
+      if (Object.keys(horariosPatch).length > 0) {
+        const { error: syncErr } = await supabase
+          .from("pacote_horarios")
+          .update(horariosPatch)
+          .eq("pacote_id", id)
+          .eq("barbearia_id", barbeariaId);
+
+        if (syncErr) {
+          console.error("Erro Supabase sincronizar horários:", syncErr);
+          return res.status(500).json({
+            error: "ERRO_SUPABASE",
+            message: "Pacote atualizado, mas houve erro ao sincronizar os horários.",
+          });
+        }
+      }
+    }
+
+    const { data: horariosAtuais, error: horariosErr } = await supabase
+      .from("pacote_horarios")
+      .select(`
+        id,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        ativo,
+        created_at
+      `)
+      .eq("pacote_id", id)
+      .eq("barbearia_id", barbeariaId);
+
+    if (horariosErr) {
+      console.error("Erro Supabase listar horários atuais:", horariosErr);
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Pacote atualizado, mas houve erro ao carregar os horários.",
+      });
+    }
+
+    return res.status(200).json(
+      mapPacoteRow({
+        ...pacoteAtualizado,
+        horarios: horariosAtuais || [],
+      })
+    );
   } catch (err) {
     console.error("Erro inesperado atualizarPacote:", err);
     return res.status(500).json({
@@ -433,9 +839,24 @@ export async function desativarPacote(req, res) {
       .update({ ativo: false })
       .eq("id", id)
       .eq("barbearia_id", barbeariaId)
-      .select(
-        "id, cliente_id, cliente_nome, profissional_id, dia_semana, hora_inicio, duracao_minutos, vigencia_inicio, vigencia_fim, ativo, preco_mensal, dia_vencimento, cobranca_ativa"
-      )
+      .select(`
+        id,
+        cliente_id,
+        cliente_nome,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        vigencia_inicio,
+        vigencia_fim,
+        ativo,
+        observacoes,
+        preco_mensal,
+        dia_vencimento,
+        cobranca_ativa,
+        created_at,
+        profissional:profissionais ( id, nome )
+      `)
       .single();
 
     if (error) {
@@ -453,9 +874,48 @@ export async function desativarPacote(req, res) {
       });
     }
 
+    const { error: horariosErr } = await supabase
+      .from("pacote_horarios")
+      .update({ ativo: false })
+      .eq("pacote_id", id)
+      .eq("barbearia_id", barbeariaId);
+
+    if (horariosErr) {
+      console.error("Erro Supabase desativar horários do pacote:", horariosErr);
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Pacote desativado, mas não foi possível desativar os horários vinculados.",
+      });
+    }
+
+    const { data: horariosAtuais, error: listarHorariosErr } = await supabase
+      .from("pacote_horarios")
+      .select(`
+        id,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        ativo,
+        created_at
+      `)
+      .eq("pacote_id", id)
+      .eq("barbearia_id", barbeariaId);
+
+    if (listarHorariosErr) {
+      console.error("Erro Supabase listar horários do pacote desativado:", listarHorariosErr);
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Pacote desativado, mas houve erro ao carregar os horários.",
+      });
+    }
+
     return res.status(200).json({
       message: "Pacote desativado com sucesso.",
-      pacote: data,
+      pacote: mapPacoteRow({
+        ...data,
+        horarios: horariosAtuais || [],
+      }),
     });
   } catch (err) {
     console.error("Erro inesperado desativarPacote:", err);
@@ -466,9 +926,9 @@ export async function desativarPacote(req, res) {
   }
 }
 
-// ---------------------------------------------------------------------
-// GET /pacotes/:id/pagamentos  → admin
-// ---------------------------------------------------------------------
+/**
+ * GET /pacotes/:id/pagamentos  → admin
+ */
 export async function listarPagamentosPacote(req, res) {
   try {
     const barbeariaId = getBarbeariaId(req);
@@ -510,9 +970,20 @@ export async function listarPagamentosPacote(req, res) {
 
     const { data, error } = await supabase
       .from("pacote_pagamentos")
-      .select(
-        "id, pacote_id, competencia, valor, pago_em, forma_pagamento, user_id, asaas_payment_id, created_at, comissao_pct_aplicada, comissao_valor, comissao_calculada_em"
-      )
+      .select(`
+        id,
+        pacote_id,
+        competencia,
+        valor,
+        pago_em,
+        forma_pagamento,
+        user_id,
+        asaas_payment_id,
+        created_at,
+        comissao_pct_aplicada,
+        comissao_valor,
+        comissao_calculada_em
+      `)
       .eq("barbearia_id", barbeariaId)
       .eq("pacote_id", pacoteId)
       .order("competencia", { ascending: false })
@@ -536,9 +1007,12 @@ export async function listarPagamentosPacote(req, res) {
   }
 }
 
-// ---------------------------------------------------------------------
-// POST /pacotes/:id/pagamentos  → admin (gestor)
-// ---------------------------------------------------------------------
+/**
+ * POST /pacotes/:id/pagamentos  → admin (gestor)
+ *
+ * Continua usando pacotes.profissional_id para comissão.
+ * Isso é proposital nesta fase.
+ */
 export async function registrarPagamentoPacote(req, res) {
   try {
     const barbeariaId = getBarbeariaId(req);
@@ -693,9 +1167,20 @@ export async function registrarPagamentoPacote(req, res) {
     const { data: pagamento, error } = await supabase
       .from("pacote_pagamentos")
       .insert(payload)
-      .select(
-        "id, pacote_id, competencia, valor, pago_em, forma_pagamento, user_id, asaas_payment_id, created_at, comissao_pct_aplicada, comissao_valor, comissao_calculada_em"
-      )
+      .select(`
+        id,
+        pacote_id,
+        competencia,
+        valor,
+        pago_em,
+        forma_pagamento,
+        user_id,
+        asaas_payment_id,
+        created_at,
+        comissao_pct_aplicada,
+        comissao_valor,
+        comissao_calculada_em
+      `)
       .single();
 
     if (error) {

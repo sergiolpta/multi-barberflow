@@ -1,4 +1,3 @@
-// backend/src/controllers/agendamentos.controller.js
 import { supabaseAdmin } from "../lib/supabase.js";
 import { calcularComissaoServico } from "../services/comissoes.service.js";
 
@@ -14,8 +13,12 @@ function respondBarbeariaAusente(res) {
 }
 
 function adicionarMinutos(horaStr, minutos) {
-  const [h, m] = horaStr.split(":").map(Number);
-  const total = h * 60 + m + minutos;
+  const [h, m] = String(horaStr || "00:00")
+    .slice(0, 5)
+    .split(":")
+    .map(Number);
+
+  const total = h * 60 + m + Number(minutos || 0);
   const hh = String(Math.floor(total / 60)).padStart(2, "0");
   const mm = String(total % 60).padStart(2, "0");
   return `${hh}:${mm}`;
@@ -28,13 +31,6 @@ function calcularDiffHoras(dataISO, horaInicio) {
   return diffMs / (1000 * 60 * 60);
 }
 
-/**
- * ALTERAÇÃO APLICADA:
- * - Como nesta fase apenas owner/admin podem reagendar/cancelar,
- *   removemos as travas de antecedência para admins (gap aberto).
- * - Quando você habilitar cliente no futuro, é só remover esse early-return
- *   e voltar a aplicar as regras por role.
- */
 function validarJanelaReagendamentoCancelamento({ dataISO, horaInicio, isAdmin }) {
   if (isAdmin) return { ok: true };
 
@@ -66,14 +62,28 @@ function normalizarWhatsapp(input) {
   return raw.replace(/\D/g, "");
 }
 
-/**
- * ✅ ALTERADO:
- * - aceita cliente_nascimento (YYYY-MM-DD)
- * - ao encontrar cliente por whatsapp:
- *    - se veio nascimento e cliente não tem, atualiza (sem sobrescrever)
- * - ao criar novo cliente:
- *    - grava nascimento se vier
- */
+function parseDateOnly(value) {
+  const s = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return s;
+}
+
+function normalizeHora(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+  if (/^\d{2}:\d{2}$/.test(s)) return `${s}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s;
+  return null;
+}
+
+function parsePositiveInt(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
+}
+
 async function findOrCreateCliente({
   barbeariaId,
   cliente_id,
@@ -212,12 +222,94 @@ async function findOrCreateCliente({
   };
 }
 
-/**
- * NOVO: adiciona "serviço extra" ao financeiro sem mexer na agenda.
- * ✅ CORRIGIDO: agora calcula e grava comissão em vendas (extras).
- * ✅ CORRIGIDO (BUG PRINCIPAL): usa SEMPRE o barbearia_id do agendamento (ag.barbearia_id)
- * para garantir que o Financeiro encontre essa venda no fechamento/prévia.
- */
+async function buscarOcorrenciaPacoteBase({
+  barbeariaId,
+  pacoteId,
+  pacoteHorarioId,
+  dataOriginal,
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("pacote_horarios")
+    .select(`
+      id,
+      pacote_id,
+      barbearia_id,
+      profissional_id,
+      dia_semana,
+      hora_inicio,
+      duracao_minutos,
+      ativo,
+      pacote:pacotes (
+        id,
+        barbearia_id,
+        profissional_id,
+        vigencia_inicio,
+        vigencia_fim,
+        ativo
+      )
+    `)
+    .eq("barbearia_id", barbeariaId)
+    .eq("id", pacoteHorarioId)
+    .eq("pacote_id", pacoteId)
+    .single();
+
+  if (error) {
+    return {
+      error: {
+        status: 500,
+        code: "ERRO_SUPABASE",
+        message: "Erro ao buscar ocorrência do pacote.",
+      },
+    };
+  }
+
+  if (!data || !data.pacote) {
+    return {
+      error: {
+        status: 404,
+        code: "PACOTE_OCORRENCIA_NAO_ENCONTRADA",
+        message: "Ocorrência do pacote não encontrada.",
+      },
+    };
+  }
+
+  if (data.ativo !== true || data.pacote.ativo !== true) {
+    return {
+      error: {
+        status: 400,
+        code: "PACOTE_INATIVO",
+        message: "O pacote ou horário recorrente está inativo.",
+      },
+    };
+  }
+
+  const inicio = data.pacote.vigencia_inicio;
+  const fim = data.pacote.vigencia_fim;
+
+  if (!inicio || dataOriginal < inicio || (fim && dataOriginal > fim)) {
+    return {
+      error: {
+        status: 400,
+        code: "DATA_FORA_VIGENCIA",
+        message: "A data informada está fora da vigência do pacote.",
+      },
+    };
+  }
+
+  const diaSemanaOriginal = new Date(`${dataOriginal}T00:00:00`).getDay();
+  if (Number(data.dia_semana) !== diaSemanaOriginal) {
+    return {
+      error: {
+        status: 400,
+        code: "DATA_NAO_CORRESPONDE_A_OCORRENCIA",
+        message: "A data original não corresponde ao dia recorrente desse horário de pacote.",
+      },
+    };
+  }
+
+  return { ocorrencia: data };
+}
+
 export async function adicionarExtrasAgendamento(req, res) {
   try {
     const barbeariaId = getBarbeariaId(req);
@@ -869,22 +961,28 @@ export async function listarAgendamentos(req, res) {
     const diaSemana = new Date(`${data}T00:00:00`).getDay();
 
     let pacotesQuery = supabaseAdmin
-      .from("pacotes")
+      .from("pacote_horarios")
       .select(
         `
         id,
-        barbearia_id,
-        cliente_id,
-        cliente_nome,
+        pacote_id,
         profissional_id,
         dia_semana,
         hora_inicio,
         duracao_minutos,
-        vigencia_inicio,
-        vigencia_fim,
         ativo,
-        observacoes,
-        cliente:clientes ( id, nome, whatsapp ),
+        pacote:pacotes (
+          id,
+          barbearia_id,
+          cliente_id,
+          cliente_nome,
+          profissional_id,
+          vigencia_inicio,
+          vigencia_fim,
+          ativo,
+          observacoes,
+          cliente:clientes ( id, nome, whatsapp )
+        ),
         profissional:profissionais ( id, nome )
         `
       )
@@ -892,9 +990,11 @@ export async function listarAgendamentos(req, res) {
       .eq("ativo", true)
       .eq("dia_semana", diaSemana);
 
-    if (profissional_id) pacotesQuery = pacotesQuery.eq("profissional_id", profissional_id);
+    if (profissional_id) {
+      pacotesQuery = pacotesQuery.eq("profissional_id", profissional_id);
+    }
 
-    const { data: pacotesRaw, error: errorPac } = await pacotesQuery;
+    const { data: pacotesHorariosRaw, error: errorPac } = await pacotesQuery;
 
     if (errorPac) {
       return res.status(500).json({
@@ -903,59 +1003,495 @@ export async function listarAgendamentos(req, res) {
       });
     }
 
-    const pacotes = (pacotesRaw || []).filter((p) => {
-      const inicio = p.vigencia_inicio;
-      const fim = p.vigencia_fim;
+    const pacotesHorarios = (pacotesHorariosRaw || []).filter((ph) => {
+      const pacote = ph.pacote;
+      if (!pacote) return false;
+      if (pacote.ativo !== true) return false;
+
+      const inicio = pacote.vigencia_inicio;
+      const fim = pacote.vigencia_fim;
+
       if (!inicio) return false;
       if (data < inicio) return false;
       if (fim && data > fim) return false;
+
       return true;
     });
 
-    const instanciasPacotes = pacotes.map((p) => {
-      const horaInicioStr = (p.hora_inicio && p.hora_inicio.slice(0, 5)) || "00:00";
-      const horaFimStrBase = adicionarMinutos(horaInicioStr, p.duracao_minutos);
-      const horaFimStr = horaFimStrBase.length === 5 ? `${horaFimStrBase}:00` : horaFimStrBase;
+    const { data: excecoesRaw, error: excecoesError } = await supabaseAdmin
+      .from("pacote_excecoes")
+      .select(`
+        id,
+        pacote_id,
+        pacote_horario_id,
+        data_original,
+        acao,
+        nova_data,
+        nova_hora_inicio,
+        nova_duracao_minutos,
+        observacoes,
+        created_at
+      `)
+      .eq("barbearia_id", barbeariaId)
+      .or(`data_original.eq.${data},nova_data.eq.${data}`);
 
-      return {
-        id: `pacote-${p.id}`,
-        data,
-        hora_inicio: `${horaInicioStr}:00`,
-        hora_fim: horaFimStr,
-        status: "pacote",
-        preco_aplicado: null,
-        comissao_valor: null,
-        extras_total: 0,
-        extras_count: 0,
-        extras_resumo: null,
-        cliente: {
-          id: p.cliente?.id || p.cliente_id || null,
-          nome: p.cliente?.nome || p.cliente_nome || "Cliente pacote",
-          whatsapp: p.cliente?.whatsapp || "",
-        },
-        profissional: {
-          id: p.profissional?.id || p.profissional_id,
-          nome: p.profissional?.nome || "Profissional",
-        },
-        servico: {
-          id: null,
-          nome: p.observacoes || "Pacote fixo",
-          preco: null,
-        },
-      };
-    });
+    if (excecoesError) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Erro ao listar exceções de pacote",
+      });
+    }
 
-    const tudo = [...agendamentosComExtras, ...instanciasPacotes].sort((a, b) => {
-      const ha = (a.hora_inicio || "").slice(0, 5);
-      const hb = (b.hora_inicio || "").slice(0, 5);
-      return ha.localeCompare(hb);
-    });
+    const excecoes = excecoesRaw || [];
+
+    const excecaoPorOcorrenciaOriginal = new Map();
+    for (const ex of excecoes) {
+      const key = `${ex.pacote_horario_id}|${ex.data_original}`;
+      excecaoPorOcorrenciaOriginal.set(key, ex);
+    }
+
+    const instanciasPacotesBase = pacotesHorarios
+      .filter((ph) => {
+        const key = `${ph.id}|${data}`;
+        return !excecaoPorOcorrenciaOriginal.has(key);
+      })
+      .map((ph) => {
+        const pacote = ph.pacote || {};
+        const horaInicioStr = (ph.hora_inicio && String(ph.hora_inicio).slice(0, 5)) || "00:00";
+        const horaFimBase = adicionarMinutos(horaInicioStr, ph.duracao_minutos);
+        const horaFimStr = horaFimBase.length === 5 ? `${horaFimBase}:00` : horaFimBase;
+
+        return {
+          id: `pacote-${pacote.id}-${ph.id}`,
+          data,
+          hora_inicio: `${horaInicioStr}:00`,
+          hora_fim: horaFimStr,
+          status: "pacote",
+          preco_aplicado: null,
+          comissao_valor: null,
+          extras_total: 0,
+          extras_count: 0,
+          extras_resumo: null,
+          cliente: {
+            id: pacote.cliente?.id || pacote.cliente_id || null,
+            nome: pacote.cliente?.nome || pacote.cliente_nome || "Cliente pacote",
+            whatsapp: pacote.cliente?.whatsapp || "",
+          },
+          profissional: {
+            id: ph.profissional?.id || ph.profissional_id || pacote.profissional_id || null,
+            nome: ph.profissional?.nome || "Profissional",
+          },
+          servico: {
+            id: null,
+            nome: pacote.observacoes || "Pacote fixo",
+            preco: null,
+          },
+          pacote_id: pacote.id,
+          pacote_horario_id: ph.id,
+        };
+      });
+
+    const excecoesRemarcadasDoDia = excecoes.filter(
+      (ex) => ex.acao === "remarcado" && ex.nova_data === data
+    );
+
+    let remarcadosQueryResult = [];
+    if (excecoesRemarcadasDoDia.length > 0) {
+      const horarioIds = Array.from(
+        new Set(excecoesRemarcadasDoDia.map((ex) => ex.pacote_horario_id).filter(Boolean))
+      );
+
+      const { data: horariosRemarcados, error: horariosRemarcadosErr } = await supabaseAdmin
+        .from("pacote_horarios")
+        .select(`
+          id,
+          pacote_id,
+          profissional_id,
+          dia_semana,
+          hora_inicio,
+          duracao_minutos,
+          ativo,
+          pacote:pacotes (
+            id,
+            barbearia_id,
+            cliente_id,
+            cliente_nome,
+            profissional_id,
+            vigencia_inicio,
+            vigencia_fim,
+            ativo,
+            observacoes,
+            cliente:clientes ( id, nome, whatsapp )
+          ),
+          profissional:profissionais ( id, nome )
+        `)
+        .eq("barbearia_id", barbeariaId)
+        .in("id", horarioIds);
+
+      if (horariosRemarcadosErr) {
+        return res.status(500).json({
+          error: "ERRO_SUPABASE",
+          message: "Erro ao carregar horários remarcados de pacote",
+        });
+      }
+
+      const horarioMap = new Map((horariosRemarcados || []).map((h) => [String(h.id), h]));
+
+      remarcadosQueryResult = excecoesRemarcadasDoDia
+        .map((ex) => {
+          const ph = horarioMap.get(String(ex.pacote_horario_id));
+          if (!ph) return null;
+
+          const pacote = ph.pacote || {};
+          if (ph.ativo !== true || pacote.ativo !== true) return null;
+
+          const profissionalIdEx =
+            ph.profissional?.id || ph.profissional_id || pacote.profissional_id || null;
+
+          if (profissional_id && String(profissionalIdEx) !== String(profissional_id)) {
+            return null;
+          }
+
+          const horaIni = String(ex.nova_hora_inicio || "").slice(0, 5);
+          const dur = Number(ex.nova_duracao_minutos || ph.duracao_minutos || 0);
+          const horaFimBase = adicionarMinutos(horaIni, dur);
+          const horaFimStr = horaFimBase.length === 5 ? `${horaFimBase}:00` : horaFimBase;
+
+          return {
+            id: `pacote-remarcado-${pacote.id}-${ph.id}-${ex.id}`,
+            data,
+            hora_inicio: `${horaIni}:00`,
+            hora_fim: horaFimStr,
+            status: "pacote_remarcado",
+            preco_aplicado: null,
+            comissao_valor: null,
+            extras_total: 0,
+            extras_count: 0,
+            extras_resumo: null,
+            cliente: {
+              id: pacote.cliente?.id || pacote.cliente_id || null,
+              nome: pacote.cliente?.nome || pacote.cliente_nome || "Cliente pacote",
+              whatsapp: pacote.cliente?.whatsapp || "",
+            },
+            profissional: {
+              id: profissionalIdEx,
+              nome: ph.profissional?.nome || "Profissional",
+            },
+            servico: {
+              id: null,
+              nome: ex.observacoes || pacote.observacoes || "Pacote remarcado",
+              preco: null,
+            },
+            pacote_id: pacote.id,
+            pacote_horario_id: ph.id,
+            excecao_id: ex.id,
+            data_original: ex.data_original,
+          };
+        })
+        .filter(Boolean);
+    }
+
+    const tudo = [...agendamentosComExtras, ...instanciasPacotesBase, ...remarcadosQueryResult].sort(
+      (a, b) => {
+        const ha = (a.hora_inicio || "").slice(0, 5);
+        const hb = (b.hora_inicio || "").slice(0, 5);
+        return ha.localeCompare(hb);
+      }
+    );
 
     return res.status(200).json(tudo);
-  } catch {
+  } catch (err) {
     return res.status(500).json({
       error: "ERRO_INTERNO",
-      message: "Erro interno ao listar agendamentos",
+      message: String(err?.message || "Erro interno ao listar agendamentos"),
+    });
+  }
+}
+
+export async function cancelarOcorrenciaPacote(req, res) {
+  try {
+    const barbeariaId = getBarbeariaId(req);
+    const { pacote_id, pacote_horario_id, data_original, observacoes } = req.body || {};
+
+    if (!barbeariaId) {
+      return respondBarbeariaAusente(res);
+    }
+
+    const pacoteId = String(pacote_id || "").trim();
+    const pacoteHorarioId = String(pacote_horario_id || "").trim();
+    const dataOriginal = parseDateOnly(data_original);
+
+    if (!pacoteId || !pacoteHorarioId || !dataOriginal) {
+      return res.status(400).json({
+        error: "CAMPOS_OBRIGATORIOS",
+        message: "pacote_id, pacote_horario_id e data_original são obrigatórios.",
+      });
+    }
+
+    const found = await buscarOcorrenciaPacoteBase({
+      barbeariaId,
+      pacoteId,
+      pacoteHorarioId,
+      dataOriginal,
+    });
+
+    if (found.error) {
+      return res.status(found.error.status).json({
+        error: found.error.code,
+        message: found.error.message,
+      });
+    }
+
+    const payload = {
+      barbearia_id: barbeariaId,
+      pacote_id: pacoteId,
+      pacote_horario_id: pacoteHorarioId,
+      data_original: dataOriginal,
+      acao: "cancelado",
+      nova_data: null,
+      nova_hora_inicio: null,
+      nova_duracao_minutos: null,
+      observacoes: observacoes ? String(observacoes).trim() : null,
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("pacote_excecoes")
+      .upsert(payload, {
+        onConflict: "pacote_horario_id,data_original",
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: error.message || "Erro ao cancelar ocorrência do pacote.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Ocorrência do pacote cancelada com sucesso.",
+      excecao: data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "ERRO_INTERNO",
+      message: String(err?.message || err),
+    });
+  }
+}
+
+export async function remarcarOcorrenciaPacote(req, res) {
+  try {
+    const barbeariaId = getBarbeariaId(req);
+    const {
+      pacote_id,
+      pacote_horario_id,
+      data_original,
+      nova_data,
+      nova_hora_inicio,
+      nova_duracao_minutos,
+      observacoes,
+    } = req.body || {};
+
+    if (!barbeariaId) {
+      return respondBarbeariaAusente(res);
+    }
+
+    const pacoteId = String(pacote_id || "").trim();
+    const pacoteHorarioId = String(pacote_horario_id || "").trim();
+    const dataOriginal = parseDateOnly(data_original);
+    const novaData = parseDateOnly(nova_data);
+    const novaHora = normalizeHora(nova_hora_inicio);
+
+    if (!pacoteId || !pacoteHorarioId || !dataOriginal || !novaData || !novaHora) {
+      return res.status(400).json({
+        error: "CAMPOS_OBRIGATORIOS",
+        message:
+          "pacote_id, pacote_horario_id, data_original, nova_data e nova_hora_inicio são obrigatórios.",
+      });
+    }
+
+    const found = await buscarOcorrenciaPacoteBase({
+      barbeariaId,
+      pacoteId,
+      pacoteHorarioId,
+      dataOriginal,
+    });
+
+    if (found.error) {
+      return res.status(found.error.status).json({
+        error: found.error.code,
+        message: found.error.message,
+      });
+    }
+
+    const ocorrencia = found.ocorrencia;
+    const profissionalId = ocorrencia.profissional_id || ocorrencia.pacote?.profissional_id || null;
+    const duracao =
+      nova_duracao_minutos === undefined || nova_duracao_minutos === null || nova_duracao_minutos === ""
+        ? Number(ocorrencia.duracao_minutos)
+        : parsePositiveInt(nova_duracao_minutos);
+
+    if (!profissionalId) {
+      return res.status(400).json({
+        error: "PROFISSIONAL_NAO_ENCONTRADO",
+        message: "Não foi possível identificar o profissional da ocorrência.",
+      });
+    }
+
+    if (!duracao) {
+      return res.status(400).json({
+        error: "DURACAO_INVALIDA",
+        message: "nova_duracao_minutos deve ser um número inteiro maior que zero.",
+      });
+    }
+
+    const novaHoraFim = adicionarMinutos(novaHora.slice(0, 5), duracao);
+
+    const { data: bloqueios, error: bloqueioError } = await supabaseAdmin
+      .from("bloqueios_agenda")
+      .select("id")
+      .eq("barbearia_id", barbeariaId)
+      .eq("profissional_id", profissionalId)
+      .eq("data", novaData)
+      .lt("hora_inicio", novaHoraFim)
+      .gt("hora_fim", novaHora);
+
+    if (bloqueioError) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Erro ao verificar bloqueios da nova data/hora.",
+      });
+    }
+
+    if (bloqueios && bloqueios.length > 0) {
+      return res.status(409).json({
+        error: "HORARIO_BLOQUEADO",
+        message: "A nova data/hora está bloqueada na agenda do profissional.",
+      });
+    }
+
+    const { data: conflitosAg, error: conflitoAgError } = await supabaseAdmin
+      .from("agendamentos")
+      .select("id")
+      .eq("barbearia_id", barbeariaId)
+      .eq("profissional_id", profissionalId)
+      .eq("data", novaData)
+      .eq("status", "confirmado")
+      .lt("hora_inicio", novaHoraFim)
+      .gt("hora_fim", novaHora);
+
+    if (conflitoAgError) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Erro ao verificar conflitos com agendamentos.",
+      });
+    }
+
+    if (conflitosAg && conflitosAg.length > 0) {
+      return res.status(409).json({
+        error: "HORARIO_INDISPONIVEL",
+        message: "Já existe agendamento confirmado nesse horário.",
+      });
+    }
+
+    const novoDiaSemana = new Date(`${novaData}T00:00:00`).getDay();
+
+    const { data: conflitosPacoteHorario, error: conflitoPacError } = await supabaseAdmin
+      .from("pacote_horarios")
+      .select(`
+        id,
+        pacote_id,
+        profissional_id,
+        dia_semana,
+        hora_inicio,
+        duracao_minutos,
+        ativo,
+        pacote:pacotes (
+          id,
+          vigencia_inicio,
+          vigencia_fim,
+          ativo
+        )
+      `)
+      .eq("barbearia_id", barbeariaId)
+      .eq("profissional_id", profissionalId)
+      .eq("ativo", true)
+      .eq("dia_semana", novoDiaSemana);
+
+    if (conflitoPacError) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: "Erro ao verificar conflitos com pacotes.",
+      });
+    }
+
+    const conflitosPacoteFiltrados = (conflitosPacoteHorario || []).filter((ph) => {
+      const pacote = ph.pacote;
+      if (!pacote || pacote.ativo !== true) return false;
+      if (!pacote.vigencia_inicio || novaData < pacote.vigencia_inicio) return false;
+      if (pacote.vigencia_fim && novaData > pacote.vigencia_fim) return false;
+
+      const inicioExist = String(ph.hora_inicio || "").slice(0, 5);
+      const fimExist = adicionarMinutos(inicioExist, Number(ph.duracao_minutos || 0));
+
+      const novoIni = novaHora.slice(0, 5);
+      const novoFim = novaHoraFim.slice(0, 5);
+
+      const overlap = inicioExist < novoFim && fimExist > novoIni;
+
+      if (!overlap) return false;
+
+      if (String(ph.id) === pacoteHorarioId && novaData === dataOriginal) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (conflitosPacoteFiltrados.length > 0) {
+      return res.status(409).json({
+        error: "CONFLITO_COM_PACOTE",
+        message: "A nova data/hora conflita com outro horário de pacote.",
+      });
+    }
+
+    const payload = {
+      barbearia_id: barbeariaId,
+      pacote_id: pacoteId,
+      pacote_horario_id: pacoteHorarioId,
+      data_original: dataOriginal,
+      acao: "remarcado",
+      nova_data: novaData,
+      nova_hora_inicio: novaHora,
+      nova_duracao_minutos: duracao,
+      observacoes: observacoes ? String(observacoes).trim() : null,
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("pacote_excecoes")
+      .upsert(payload, {
+        onConflict: "pacote_horario_id,data_original",
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        error: "ERRO_SUPABASE",
+        message: error.message || "Erro ao remarcar ocorrência do pacote.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Ocorrência do pacote remarcada com sucesso.",
+      excecao: data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "ERRO_INTERNO",
+      message: String(err?.message || err),
     });
   }
 }

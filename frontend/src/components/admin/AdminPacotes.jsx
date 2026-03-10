@@ -1,8 +1,6 @@
-// src/components/admin/AdminPacotes.jsx
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAdminPacotes } from "../../hooks/useAdminPacotes";
 
-// helper para dia_semana (0–6) -> nome
 function labelDiaSemana(n) {
   const nomes = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   return nomes[n] ?? `Dia ${n}`;
@@ -26,6 +24,18 @@ function competenciaMesAtualISO() {
   return `${yyyy}-${mm}-01`;
 }
 
+function sortHorarios(horarios) {
+  return [...(horarios || [])].sort((a, b) => {
+    const diaA = Number(a?.dia_semana ?? 99);
+    const diaB = Number(b?.dia_semana ?? 99);
+    if (diaA !== diaB) return diaA - diaB;
+
+    const horaA = String(a?.hora_inicio || "");
+    const horaB = String(b?.hora_inicio || "");
+    return horaA.localeCompare(horaB);
+  });
+}
+
 export function AdminPacotes({
   profissionais,
   accessToken,
@@ -39,9 +49,12 @@ export function AdminPacotes({
 
   const [clienteNome, setClienteNome] = useState("");
   const [profissionalId, setProfissionalId] = useState("");
+
   const [diaSemana, setDiaSemana] = useState("1");
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [duracaoMin, setDuracaoMin] = useState("30");
+  const [horariosPacote, setHorariosPacote] = useState([]);
+
   const hojeISO = new Date().toISOString().slice(0, 10);
   const [vigenciaInicio, setVigenciaInicio] = useState(hojeISO);
   const [vigenciaFim, setVigenciaFim] = useState("");
@@ -99,6 +112,75 @@ export function AdminPacotes({
     return m;
   }, [profissionais]);
 
+  function limparFormularioPacote() {
+    setClienteNome("");
+    setProfissionalId("");
+    setDiaSemana("1");
+    setHoraInicio("09:00");
+    setDuracaoMin("30");
+    setHorariosPacote([]);
+    setVigenciaInicio(hojeISO);
+    setVigenciaFim("");
+    setObservacoes("");
+    setPrecoMensal("");
+    setCobrancaAtiva(true);
+    setDiaVencimento("");
+  }
+
+  function handleAdicionarHorario() {
+    setMensagemSucesso("");
+    setMensagemErroCriacao("");
+
+    if (!profissionalId) {
+      setMensagemErroCriacao("Selecione o profissional antes de adicionar horários.");
+      return;
+    }
+
+    const dia = Number(diaSemana);
+    const dur = Number(duracaoMin);
+    const hora = String(horaInicio || "").trim();
+
+    if (!Number.isInteger(dia) || dia < 0 || dia > 6) {
+      setMensagemErroCriacao("Dia da semana inválido.");
+      return;
+    }
+
+    if (!hora) {
+      setMensagemErroCriacao("Informe o horário de início.");
+      return;
+    }
+
+    if (!Number.isFinite(dur) || dur <= 0) {
+      setMensagemErroCriacao("Duração inválida.");
+      return;
+    }
+
+    const duplicado = horariosPacote.some(
+      (h) =>
+        Number(h.dia_semana) === dia &&
+        String(h.hora_inicio) === hora &&
+        Number(h.duracao_minutos) === dur
+    );
+
+    if (duplicado) {
+      setMensagemErroCriacao("Esse horário já foi adicionado ao pacote.");
+      return;
+    }
+
+    const novoHorario = {
+      dia_semana: dia,
+      hora_inicio: hora,
+      duracao_minutos: dur,
+    };
+
+    setHorariosPacote((prev) => sortHorarios([...prev, novoHorario]));
+    setMensagemErroCriacao("");
+  }
+
+  function handleRemoverHorario(indexToRemove) {
+    setHorariosPacote((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  }
+
   async function handleCriarPacote(e) {
     e.preventDefault();
     setMensagemSucesso("");
@@ -111,6 +193,11 @@ export function AdminPacotes({
 
     if (!vigenciaInicio) {
       setMensagemErroCriacao("Informe a data de início da vigência.");
+      return;
+    }
+
+    if (!Array.isArray(horariosPacote) || horariosPacote.length === 0) {
+      setMensagemErroCriacao("Adicione pelo menos 1 horário ao pacote.");
       return;
     }
 
@@ -138,9 +225,6 @@ export function AdminPacotes({
       const payload = {
         cliente_nome: clienteNome || null,
         profissional_id: profissionalId,
-        dia_semana: Number(diaSemana),
-        hora_inicio: horaInicio,
-        duracao_minutos: Number(duracaoMin),
         vigencia_inicio: vigenciaInicio,
         vigencia_fim: vigenciaFim || null,
         observacoes: observacoes || null,
@@ -148,16 +232,17 @@ export function AdminPacotes({
         preco_mensal: precoParsed,
         cobranca_ativa: !!cobrancaAtiva,
         dia_vencimento: diaVenc,
+        horarios: horariosPacote.map((h) => ({
+          dia_semana: Number(h.dia_semana),
+          hora_inicio: h.hora_inicio,
+          duracao_minutos: Number(h.duracao_minutos),
+        })),
       };
 
       await criarPacote(payload);
 
       setMensagemSucesso("Pacote criado com sucesso.");
-      setClienteNome("");
-      setObservacoes("");
-      setPrecoMensal("");
-      setCobrancaAtiva(true);
-      setDiaVencimento("");
+      limparFormularioPacote();
 
       await handleAtualizarLista();
     } catch (err) {
@@ -392,7 +477,7 @@ export function AdminPacotes({
 
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] text-slate-400">
-                  Profissional *
+                  Profissional responsável *
                 </label>
                 <select
                   value={profissionalId}
@@ -461,52 +546,97 @@ export function AdminPacotes({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
-                    Dia da semana *
-                  </label>
-                  <select
-                    value={diaSemana}
-                    onChange={(e) => setDiaSemana(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                  >
-                    <option value="0">Domingo</option>
-                    <option value="1">Segunda</option>
-                    <option value="2">Terça</option>
-                    <option value="3">Quarta</option>
-                    <option value="4">Quinta</option>
-                    <option value="5">Sexta</option>
-                    <option value="6">Sábado</option>
-                  </select>
+              <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                <div>
+                  <h3 className="text-slate-100 font-medium text-xs">
+                    Horários recorrentes do pacote
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Adicione 1 ou mais dias/horários para esse mesmo pacote.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-slate-400">
+                      Dia da semana
+                    </label>
+                    <select
+                      value={diaSemana}
+                      onChange={(e) => setDiaSemana(e.target.value)}
+                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                    >
+                      <option value="0">Domingo</option>
+                      <option value="1">Segunda</option>
+                      <option value="2">Terça</option>
+                      <option value="3">Quarta</option>
+                      <option value="4">Quinta</option>
+                      <option value="5">Sexta</option>
+                      <option value="6">Sábado</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-slate-400">
+                      Horário início
+                    </label>
+                    <input
+                      type="time"
+                      value={horaInicio}
+                      onChange={(e) => setHoraInicio(e.target.value)}
+                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] text-slate-400">
-                    Horário início *
+                    Duração (minutos)
                   </label>
                   <input
-                    type="time"
-                    value={horaInicio}
-                    onChange={(e) => setHoraInicio(e.target.value)}
+                    type="number"
+                    min="1"
+                    value={duracaoMin}
+                    onChange={(e) => setDuracaoMin(e.target.value)}
                     className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                    required
                   />
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
-                  Duração (minutos) *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={duracaoMin}
-                  onChange={(e) => setDuracaoMin(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                  required
-                />
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAdicionarHorario}
+                    className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-sky-500/60 text-sky-200 hover:bg-sky-900/30 transition"
+                  >
+                    Adicionar horário
+                  </button>
+                </div>
+
+                {horariosPacote.length > 0 ? (
+                  <ul className="space-y-2">
+                    {sortHorarios(horariosPacote).map((h, idx) => (
+                      <li
+                        key={`${h.dia_semana}-${h.hora_inicio}-${h.duracao_minutos}-${idx}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2"
+                      >
+                        <div className="text-[11px] text-slate-200">
+                          {labelDiaSemana(h.dia_semana)} • {String(h.hora_inicio).slice(0, 5)} ({h.duracao_minutos} min)
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoverHorario(idx)}
+                          className="text-[11px] px-2 py-1 rounded-lg border border-rose-500/60 text-rose-300 hover:bg-rose-900/30 transition"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-[11px] text-slate-500">
+                    Nenhum horário adicionado ainda.
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -629,173 +759,195 @@ export function AdminPacotes({
               <p className="text-slate-400 text-xs">Carregando pacotes...</p>
             ) : pacotes && pacotes.length > 0 ? (
               <ul className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
-                {pacotes.map((p) => (
-                  <li
-                    key={p.id}
-                    className="bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <div>
-                        <div className="font-semibold text-slate-100 text-[13px]">
-                          {labelDiaSemana(p.dia_semana)} • {p.hora_inicio?.slice(0, 5)} ({p.duracao_minutos} min)
-                        </div>
-                        <div className="text-slate-300 text-[12px]">
-                          {p.cliente_nome || "Cliente não informado"}
-                        </div>
+                {pacotes.map((p) => {
+                  const horarios = sortHorarios(
+                    Array.isArray(p.horarios) && p.horarios.length > 0
+                      ? p.horarios
+                      : [
+                          {
+                            dia_semana: p.dia_semana,
+                            hora_inicio: p.hora_inicio,
+                            duracao_minutos: p.duracao_minutos,
+                          },
+                        ]
+                  );
 
-                        <div className="text-slate-400 text-[11px] mt-1">
-                          Profissional: {p.profissional?.nome || profMap.get(p.profissional_id)?.nome || p.profissional_id}
-                        </div>
+                  return (
+                    <li
+                      key={p.id}
+                      className="bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2"
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div>
+                          <div className="font-semibold text-slate-100 text-[13px]">
+                            {p.cliente_nome || "Cliente não informado"}
+                          </div>
 
-                        <div className="text-slate-500 text-[11px] mt-1">
-                          Vigência: {formatarData(p.vigencia_inicio)}{" "}
-                          {p.vigencia_fim ? `até ${formatarData(p.vigencia_fim)}` : "em aberto"}
-                        </div>
+                          <div className="text-slate-400 text-[11px] mt-1">
+                            Profissional: {p.profissional?.nome || profMap.get(p.profissional_id)?.nome || p.profissional_id}
+                          </div>
 
-                        <div className="text-slate-300 text-[11px] mt-2 flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
-                            Preço: <b>{formatBRL(p.preco_mensal ?? 0)}</b>
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full border ${
-                              p.cobranca_ativa
-                                ? "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
-                                : "border-slate-600 text-slate-300 bg-slate-900/40"
-                            }`}
-                          >
-                            Cobrança: <b>{p.cobranca_ativa ? "Ativa" : "Pausada"}</b>
-                          </span>
-                          {p.dia_vencimento ? (
+                          <div className="text-slate-500 text-[11px] mt-1">
+                            Vigência: {formatarData(p.vigencia_inicio)}{" "}
+                            {p.vigencia_fim ? `até ${formatarData(p.vigencia_fim)}` : "em aberto"}
+                          </div>
+
+                          <div className="mt-2 space-y-1">
+                            {horarios.map((h, idx) => (
+                              <div
+                                key={`${p.id}-${h.id || idx}-${h.dia_semana}-${h.hora_inicio}`}
+                                className="text-slate-300 text-[11px]"
+                              >
+                                • {labelDiaSemana(h.dia_semana)} • {String(h.hora_inicio || "").slice(0, 5)} ({h.duracao_minutos} min)
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="text-slate-300 text-[11px] mt-2 flex items-center gap-2 flex-wrap">
                             <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
-                              Venc.: <b>dia {p.dia_vencimento}</b>
+                              Preço: <b>{formatBRL(p.preco_mensal ?? 0)}</b>
                             </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full border ${
+                                p.cobranca_ativa
+                                  ? "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
+                                  : "border-slate-600 text-slate-300 bg-slate-900/40"
+                              }`}
+                            >
+                              Cobrança: <b>{p.cobranca_ativa ? "Ativa" : "Pausada"}</b>
+                            </span>
+                            {p.dia_vencimento ? (
+                              <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
+                                Venc.: <b>dia {p.dia_vencimento}</b>
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {p.observacoes && (
+                            <div className="text-slate-500 text-[11px] mt-1">
+                              Obs.: {p.observacoes}
+                            </div>
+                          )}
+
+                          {editandoPrecoId === p.id ? (
+                            <div className="mt-3 flex items-center gap-2 flex-wrap">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={novoPreco}
+                                onChange={(e) => setNovoPreco(e.target.value)}
+                                className="bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs w-[140px]"
+                                placeholder="Ex.: 120.00"
+                              />
+                              <button
+                                onClick={() => salvarPreco(p)}
+                                disabled={salvandoAcaoId === p.id}
+                                className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/30 transition disabled:opacity-60"
+                              >
+                                {salvandoAcaoId === p.id ? "Salvando..." : "Salvar"}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditandoPrecoId("");
+                                  setNovoPreco("");
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
                           ) : null}
                         </div>
 
-                        {p.observacoes && (
-                          <div className="text-slate-500 text-[11px] mt-1">
-                            Obs.: {p.observacoes}
-                          </div>
-                        )}
+                        <div className="text-right flex flex-col items-end gap-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              p.ativo
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/60"
+                                : "bg-slate-700/60 text-slate-300 border border-slate-600"
+                            }`}
+                          >
+                            {p.ativo ? "Ativo" : "Inativo"}
+                          </span>
 
-                        {editandoPrecoId === p.id ? (
-                          <div className="mt-3 flex items-center gap-2 flex-wrap">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={novoPreco}
-                              onChange={(e) => setNovoPreco(e.target.value)}
-                              className="bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs w-[140px]"
-                              placeholder="Ex.: 120.00"
-                            />
+                          <div className="flex items-center gap-2 flex-wrap justify-end">
                             <button
-                              onClick={() => salvarPreco(p)}
-                              disabled={salvandoAcaoId === p.id}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/30 transition disabled:opacity-60"
+                              onClick={() => abrirEdicaoPreco(p)}
+                              className="text-[11px] px-2 py-1 rounded-lg border border-sky-500/60 text-sky-200 hover:bg-sky-900/30 transition"
                             >
-                              {salvandoAcaoId === p.id ? "Salvando..." : "Salvar"}
+                              Editar preço
                             </button>
+
                             <button
-                              onClick={() => {
-                                setEditandoPrecoId("");
-                                setNovoPreco("");
-                              }}
+                              onClick={() => registrarPagamentoDoMes(p)}
+                              disabled={salvandoAcaoId === p.id}
+                              className="text-[11px] px-2 py-1 rounded-lg border border-amber-500/60 text-amber-200 hover:bg-amber-900/30 transition disabled:opacity-60"
+                            >
+                              {salvandoAcaoId === p.id ? "Registrando..." : "Registrar pagamento"}
+                            </button>
+
+                            <button
+                              onClick={() => togglePagamentos(p)}
                               className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
                             >
-                              Cancelar
+                              {pagamentosAbertosId === p.id ? "Ocultar pagamentos" : "Ver pagamentos"}
                             </button>
                           </div>
-                        ) : null}
-                      </div>
 
-                      <div className="text-right flex flex-col items-end gap-2">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            p.ativo
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/60"
-                              : "bg-slate-700/60 text-slate-300 border border-slate-600"
-                          }`}
-                        >
-                          {p.ativo ? "Ativo" : "Inativo"}
-                        </span>
-
-                        <div className="flex items-center gap-2 flex-wrap justify-end">
-                          <button
-                            onClick={() => abrirEdicaoPreco(p)}
-                            className="text-[11px] px-2 py-1 rounded-lg border border-sky-500/60 text-sky-200 hover:bg-sky-900/30 transition"
-                          >
-                            Editar preço
-                          </button>
-
-                          <button
-                            onClick={() => registrarPagamentoDoMes(p)}
-                            disabled={salvandoAcaoId === p.id}
-                            className="text-[11px] px-2 py-1 rounded-lg border border-amber-500/60 text-amber-200 hover:bg-amber-900/30 transition disabled:opacity-60"
-                          >
-                            {salvandoAcaoId === p.id ? "Registrando..." : "Registrar pagamento"}
-                          </button>
-
-                          <button
-                            onClick={() => togglePagamentos(p)}
-                            className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
-                          >
-                            {pagamentosAbertosId === p.id ? "Ocultar pagamentos" : "Ver pagamentos"}
-                          </button>
+                          {p.ativo ? (
+                            <button
+                              onClick={() => handleDesativar(p.id)}
+                              disabled={salvandoAcaoId === p.id}
+                              className="text-[11px] px-2 py-1 rounded-lg border border-rose-500/60 text-rose-300 hover:bg-rose-900/40 transition disabled:opacity-60"
+                            >
+                              Desativar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleAtivar(p.id)}
+                              disabled={salvandoAcaoId === p.id}
+                              className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/40 transition disabled:opacity-60"
+                            >
+                              Ativar
+                            </button>
+                          )}
                         </div>
-
-                        {p.ativo ? (
-                          <button
-                            onClick={() => handleDesativar(p.id)}
-                            disabled={salvandoAcaoId === p.id}
-                            className="text-[11px] px-2 py-1 rounded-lg border border-rose-500/60 text-rose-300 hover:bg-rose-900/40 transition disabled:opacity-60"
-                          >
-                            Desativar
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAtivar(p.id)}
-                            disabled={salvandoAcaoId === p.id}
-                            className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/40 transition disabled:opacity-60"
-                          >
-                            Ativar
-                          </button>
-                        )}
                       </div>
-                    </div>
 
-                    {pagamentosAbertosId === p.id ? (
-                      <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                        <div className="text-[11px] text-slate-400 mb-2">
-                          Últimos pagamentos
+                      {pagamentosAbertosId === p.id ? (
+                        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
+                          <div className="text-[11px] text-slate-400 mb-2">
+                            Últimos pagamentos
+                          </div>
+
+                          {erroPagamentos ? (
+                            <div className="text-[11px] text-rose-200">{erroPagamentos}</div>
+                          ) : null}
+
+                          {loadingPagamentos ? (
+                            <div className="text-[11px] text-slate-500">Carregando pagamentos...</div>
+                          ) : pagamentos?.length ? (
+                            <ul className="space-y-2 text-[11px]">
+                              {pagamentos.map((pg) => (
+                                <li key={pg.id} className="flex items-center justify-between gap-2">
+                                  <span className="text-slate-200">
+                                    {formatarData(pg.competencia)} • {formatBRL(pg.valor)} • {pg.forma_pagamento || "—"}
+                                  </span>
+                                  <span className="text-slate-500">
+                                    {pg.pago_em ? new Date(pg.pago_em).toLocaleString("pt-BR") : "—"}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-[11px] text-slate-500">Nenhum pagamento registrado.</div>
+                          )}
                         </div>
-
-                        {erroPagamentos ? (
-                          <div className="text-[11px] text-rose-200">{erroPagamentos}</div>
-                        ) : null}
-
-                        {loadingPagamentos ? (
-                          <div className="text-[11px] text-slate-500">Carregando pagamentos...</div>
-                        ) : pagamentos?.length ? (
-                          <ul className="space-y-2 text-[11px]">
-                            {pagamentos.map((pg) => (
-                              <li key={pg.id} className="flex items-center justify-between gap-2">
-                                <span className="text-slate-200">
-                                  {formatarData(pg.competencia)} • {formatBRL(pg.valor)} • {pg.forma_pagamento || "—"}
-                                </span>
-                                <span className="text-slate-500">
-                                  {pg.pago_em ? new Date(pg.pago_em).toLocaleString("pt-BR") : "—"}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-[11px] text-slate-500">Nenhum pagamento registrado.</div>
-                        )}
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-slate-500 text-xs">

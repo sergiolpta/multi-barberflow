@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminAgenda } from "./components/admin/AdminAgenda";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { useAdminAuth } from "./hooks/useAdminAuth";
@@ -8,9 +8,11 @@ import { AdminPacotes } from "./components/admin/AdminPacotes";
 import { AdminFinanceiro } from "./components/admin/AdminFinanceiro";
 import { AdminProdutos } from "./components/admin/AdminProdutos";
 import { AdminVendas } from "./components/admin/AdminVendas";
+import { apiFetch } from "./config/api";
 
 export default function App() {
   const [modoAdmin, setModoAdmin] = useState("adminHome");
+  const [profissionais, setProfissionais] = useState([]);
 
   const {
     user,
@@ -24,6 +26,35 @@ export default function App() {
     login,
     logout,
   } = useAdminAuth();
+
+  useEffect(() => {
+    async function carregarProfissionais() {
+      if (!accessToken || !user) {
+        setProfissionais([]);
+        return;
+      }
+
+      try {
+        const data = await apiFetch("/profissionais/admin", {
+          accessToken,
+          method: "GET",
+        });
+
+        setProfissionais(
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data?.profissionais)
+              ? data.profissionais
+              : []
+        );
+      } catch (err) {
+        console.error("Erro ao carregar profissionais:", err);
+        setProfissionais([]);
+      }
+    }
+
+    carregarProfissionais();
+  }, [accessToken, user]);
 
   const isOwner = adminRole === "admin_owner";
   const podeProdutosEVendas = ["admin_owner", "admin_staff"].includes(adminRole);
@@ -210,7 +241,7 @@ export default function App() {
   if (modoAdmin === "agenda") {
     return (
       <AdminAgenda
-        profissionais={[]}
+        profissionais={profissionais}
         accessToken={accessToken}
         barbeariaNome={adminBarbeariaNome || undefined}
         barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
@@ -299,7 +330,7 @@ export default function App() {
   if (modoAdmin === "pacotes") {
     return (
       <AdminPacotes
-        profissionais={[]}
+        profissionais={profissionais}
         accessToken={accessToken}
         barbeariaNome={adminBarbeariaNome || undefined}
         barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}

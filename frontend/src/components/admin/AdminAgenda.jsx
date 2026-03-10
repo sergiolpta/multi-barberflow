@@ -39,11 +39,12 @@ export function AdminAgenda({
     reagendarAgendamento,
     cancelarAgendamento,
     adicionarExtrasAgendamento,
+    cancelarOcorrenciaPacote,
+    remarcarOcorrenciaPacote,
   } = useAdminAgenda({
     data: dataAgenda,
     profissionalId: profissionalFiltro || null,
     accessToken,
-    
   });
 
   useEffect(() => {
@@ -99,6 +100,20 @@ export function AdminAgenda({
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
     const [y, m, d] = s.split("-");
     return `${d}/${m}/${y}`;
+  }
+
+  function normalizarDataISO(valor) {
+    const s = String(valor || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
+    return s;
+  }
+
+  function normalizarHoraHHMM(valor) {
+    const s = String(valor || "").trim();
+    if (!s) return "";
+    if (/^\d{2}:\d{2}$/.test(s)) return s;
+    if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s.slice(0, 5);
+    return "";
   }
 
   function extractHorariosArray(payload) {
@@ -214,6 +229,33 @@ export function AdminAgenda({
 
   const debounceRef = useRef(null);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAg, setEditAg] = useState(null);
+
+  const [editData, setEditData] = useState(hoje);
+  const [editHora, setEditHora] = useState("09:00");
+
+  const [extraServicoId, setExtraServicoId] = useState("");
+  const [extraQtd, setExtraQtd] = useState("1");
+  const [extraPrecoUnit, setExtraPrecoUnit] = useState("");
+  const [extras, setExtras] = useState([]);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErro, setEditErro] = useState(null);
+  const [editSucesso, setEditSucesso] = useState(null);
+
+  const [pacoteEditOpen, setPacoteEditOpen] = useState(false);
+  const [pacoteEditAg, setPacoteEditAg] = useState(null);
+  const [pacoteEditData, setPacoteEditData] = useState(hoje);
+  const [pacoteEditHora, setPacoteEditHora] = useState("09:00");
+  const [pacoteEditObservacoes, setPacoteEditObservacoes] = useState("");
+  const [pacoteEditSaving, setPacoteEditSaving] = useState(false);
+  const [pacoteEditErro, setPacoteEditErro] = useState(null);
+  const [pacoteEditSucesso, setPacoteEditSucesso] = useState(null);
+
+  const [servicos, setServicos] = useState([]);
+  const [servicosLoading, setServicosLoading] = useState(false);
+  const [servicosErro, setServicosErro] = useState(null);
+
   function abrirNovoAgendamento() {
     setNovoErro(null);
     setNovoSucesso(null);
@@ -304,17 +346,12 @@ export function AdminAgenda({
     };
   }, [clienteQuery, novoOpen, accessToken, clienteId, clienteNome]);
 
-  const [servicos, setServicos] = useState([]);
-  const [servicosLoading, setServicosLoading] = useState(false);
-  const [servicosErro, setServicosErro] = useState(null);
-
   useEffect(() => {
     let alive = true;
 
     async function carregarServicos() {
-      if (!novoOpen) return;
+      if (!novoOpen && !editOpen) return;
       if (!accessToken) return;
-      if (servicos && servicos.length > 0) return;
 
       setServicosErro(null);
       setServicosLoading(true);
@@ -344,7 +381,7 @@ export function AdminAgenda({
     return () => {
       alive = false;
     };
-  }, [novoOpen, accessToken, servicos]);
+  }, [novoOpen, editOpen, accessToken]);
 
   const servicoSelecionadoNovo = useMemo(() => {
     if (!novoServicoId) return null;
@@ -465,7 +502,7 @@ export function AdminAgenda({
         profissional_id: novoProfissionalId,
         servico_id: novoServicoId,
         data: novoData,
-        hora: String(novoHora || "").slice(0, 8),
+        hora: String(novoHora || "").slice(0, 5),
         cliente_nome: nomeTrim,
         cliente_whatsapp: whatsNorm,
         ...(clienteNascimento ? { cliente_nascimento: clienteNascimento } : {}),
@@ -490,20 +527,6 @@ export function AdminAgenda({
     }
   }
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editAg, setEditAg] = useState(null);
-
-  const [editData, setEditData] = useState(hoje);
-  const [editHora, setEditHora] = useState("09:00");
-
-  const [extraServicoId, setExtraServicoId] = useState("");
-  const [extraQtd, setExtraQtd] = useState("1");
-  const [extraPrecoUnit, setExtraPrecoUnit] = useState("");
-  const [extras, setExtras] = useState([]);
-  const [editSaving, setEditSaving] = useState(false);
-  const [editErro, setEditErro] = useState(null);
-  const [editSucesso, setEditSucesso] = useState(null);
-
   const extrasTotal = useMemo(() => {
     let total = 0;
     for (const it of extras) {
@@ -526,9 +549,9 @@ export function AdminAgenda({
     setExtraQtd("1");
     setExtraPrecoUnit("");
 
-    setEditAg(ag);
-    setEditData(ag?.data || dataAgenda || hoje);
-    setEditHora((ag?.hora_inicio || "09:00:00").slice(0, 5));
+    setEditAg(ag || null);
+    setEditData(normalizarDataISO(ag?.data) || dataAgenda || hoje);
+    setEditHora(normalizarHoraHHMM(ag?.hora_inicio) || "09:00");
     setEditOpen(true);
   }
 
@@ -537,6 +560,25 @@ export function AdminAgenda({
     setEditAg(null);
     setEditErro(null);
     setEditSucesso(null);
+  }
+
+  function abrirEditarPacote(ag) {
+    setPacoteEditErro(null);
+    setPacoteEditSucesso(null);
+
+    setPacoteEditAg(ag || null);
+    setPacoteEditData(normalizarDataISO(ag?.data) || dataAgenda || hoje);
+    setPacoteEditHora(normalizarHoraHHMM(ag?.hora_inicio) || "09:00");
+    setPacoteEditObservacoes("");
+    setPacoteEditOpen(true);
+  }
+
+  function fecharEditarPacote() {
+    setPacoteEditOpen(false);
+    setPacoteEditAg(null);
+    setPacoteEditErro(null);
+    setPacoteEditSucesso(null);
+    setPacoteEditObservacoes("");
   }
 
   const extraServicoSelecionado = useMemo(() => {
@@ -610,6 +652,27 @@ export function AdminAgenda({
       return;
     }
 
+    if (ag.status === "pacote" || ag.status === "pacote_remarcado") {
+      const okPacote = window.confirm(
+        `Tem certeza que deseja cancelar somente esta ocorrência do pacote em ${fmtBRDate(
+          ag.data
+        )} às ${ag.hora_inicio?.slice(0, 5)} para o cliente ${ag.cliente?.nome || "—"}?`
+      );
+      if (!okPacote) return;
+
+      try {
+        await cancelarOcorrenciaPacote({
+          pacoteId: ag.pacote_id,
+          pacoteHorarioId: ag.pacote_horario_id,
+          dataOriginal: ag.data_original || ag.data,
+        });
+        await recarregarAgenda();
+      } catch (err) {
+        alert(err?.message || "Erro ao cancelar ocorrência do pacote.");
+      }
+      return;
+    }
+
     const ok = window.confirm(
       `Tem certeza que deseja cancelar o horário de ${ag.hora_inicio?.slice(
         0,
@@ -631,6 +694,12 @@ export function AdminAgenda({
       alert("Seu perfil não tem permissão para editar agendamentos.");
       return;
     }
+
+    if (ag.status === "pacote" || ag.status === "pacote_remarcado") {
+      abrirEditarPacote(ag);
+      return;
+    }
+
     abrirEditar(ag);
   }
 
@@ -639,6 +708,7 @@ export function AdminAgenda({
       setEditErro("Seu perfil não tem permissão para editar agendamentos.");
       return;
     }
+
     if (!editAg?.id) {
       setEditErro("Agendamento inválido.");
       return;
@@ -649,17 +719,28 @@ export function AdminAgenda({
     setEditSaving(true);
 
     try {
-      const dataOriginal = editAg?.data || dataAgenda;
-      const horaOriginal = (editAg?.hora_inicio || "09:00:00").slice(0, 5);
+      const dataOriginal = normalizarDataISO(editAg?.data) || "";
+      const horaOriginal = normalizarHoraHHMM(editAg?.hora_inicio) || "";
 
-      const mudouData = editData && editData !== dataOriginal;
-      const mudouHora = editHora && editHora !== horaOriginal;
+      const dataFinal = normalizarDataISO(editData) || dataOriginal;
+      const horaFinal = normalizarHoraHHMM(editHora) || horaOriginal;
+
+      if (!dataFinal) {
+        throw new Error("Data inválida para reagendamento.");
+      }
+
+      if (!horaFinal) {
+        throw new Error("Hora inválida para reagendamento.");
+      }
+
+      const mudouData = dataFinal !== dataOriginal;
+      const mudouHora = horaFinal !== horaOriginal;
 
       if (mudouData || mudouHora) {
         await reagendarAgendamento({
           id: editAg.id,
-          novaData: editData || dataOriginal,
-          novaHora: editHora || horaOriginal,
+          novaData: dataFinal,
+          novaHora: horaFinal,
         });
       }
 
@@ -673,6 +754,11 @@ export function AdminAgenda({
         await adicionarExtrasAgendamento({ id: editAg.id, itens });
       }
 
+      if (!mudouData && !mudouHora && extras.length === 0) {
+        setEditSucesso("Nenhuma alteração para salvar.");
+        return;
+      }
+
       await recarregarAgenda();
       setEditSucesso("Alterações salvas com sucesso.");
 
@@ -680,9 +766,79 @@ export function AdminAgenda({
         fecharEditar();
       }, 400);
     } catch (err) {
+      console.error("Erro ao salvar edição:", err);
       setEditErro(err?.message || "Erro ao salvar alterações.");
     } finally {
       setEditSaving(false);
+    }
+  }
+
+  async function salvarEdicaoPacote() {
+    if (!podeGerirAgenda) {
+      setPacoteEditErro("Seu perfil não tem permissão para editar ocorrências de pacote.");
+      return;
+    }
+
+    if (!pacoteEditAg?.pacote_id || !pacoteEditAg?.pacote_horario_id) {
+      setPacoteEditErro("Ocorrência de pacote inválida.");
+      return;
+    }
+
+    setPacoteEditErro(null);
+    setPacoteEditSucesso(null);
+    setPacoteEditSaving(true);
+
+    try {
+      const dataOriginalAtual = normalizarDataISO(pacoteEditAg?.data) || "";
+      const horaOriginalAtual = normalizarHoraHHMM(pacoteEditAg?.hora_inicio) || "";
+
+      const dataOriginalOcorrencia =
+        normalizarDataISO(pacoteEditAg?.data_original) || dataOriginalAtual;
+
+      const dataFinal = normalizarDataISO(pacoteEditData) || dataOriginalAtual;
+      const horaFinal = normalizarHoraHHMM(pacoteEditHora) || horaOriginalAtual;
+
+      if (!dataOriginalOcorrencia) {
+        throw new Error("Data original da ocorrência do pacote é inválida.");
+      }
+
+      if (!dataFinal) {
+        throw new Error("Data inválida para remarcar ocorrência do pacote.");
+      }
+
+      if (!horaFinal) {
+        throw new Error("Hora inválida para remarcar ocorrência do pacote.");
+      }
+
+      const mudouData = dataFinal !== dataOriginalAtual;
+      const mudouHora = horaFinal !== horaOriginalAtual;
+
+      if (!mudouData && !mudouHora) {
+        setPacoteEditSucesso("Nenhuma alteração para salvar.");
+        return;
+      }
+
+      await remarcarOcorrenciaPacote({
+        pacoteId: pacoteEditAg.pacote_id,
+        pacoteHorarioId: pacoteEditAg.pacote_horario_id,
+        dataOriginal: dataOriginalOcorrencia,
+        novaData: dataFinal,
+        novaHora: horaFinal,
+        novaDuracaoMinutos: pacoteEditAg.duracao_minutos,
+        observacoes: pacoteEditObservacoes || undefined,
+      });
+
+      await recarregarAgenda();
+      setPacoteEditSucesso("Ocorrência do pacote remarcada com sucesso.");
+
+      setTimeout(() => {
+        fecharEditarPacote();
+      }, 400);
+    } catch (err) {
+      console.error("Erro ao salvar edição do pacote:", err);
+      setPacoteEditErro(err?.message || "Erro ao salvar ocorrência do pacote.");
+    } finally {
+      setPacoteEditSaving(false);
     }
   }
 
@@ -838,6 +994,12 @@ export function AdminAgenda({
                             </span>
                           )}
 
+                          {ag.status === "pacote_remarcado" && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-900/60 text-amber-100 border border-amber-600">
+                              Pacote remarcado
+                            </span>
+                          )}
+
                           {temExtras && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/30 text-emerald-100 border border-emerald-600">
                               {Number.isFinite(extrasTotalSrv) && extrasTotalSrv > 0
@@ -868,7 +1030,7 @@ export function AdminAgenda({
                           )}
                         </div>
 
-                        {podeGerirAgenda && ag.status !== "pacote" && (
+                        {podeGerirAgenda && ag.status !== "pacote" && ag.status !== "pacote_remarcado" && (
                           <div className="flex gap-1 mt-1">
                             <button
                               onClick={() => handleEditar(ag)}
@@ -885,9 +1047,20 @@ export function AdminAgenda({
                           </div>
                         )}
 
-                        {podeGerirAgenda && ag.status === "pacote" && (
-                          <div className="text-[10px] text-slate-500 mt-2">
-                            Pacote fixo: não editável aqui
+                        {podeGerirAgenda && (ag.status === "pacote" || ag.status === "pacote_remarcado") && (
+                          <div className="flex gap-1 mt-1">
+                            <button
+                              onClick={() => handleEditar(ag)}
+                              className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleCancelar(ag)}
+                              className="px-2 py-1 rounded-lg border border-rose-600 text-rose-200 text-[10px] hover:bg-rose-600/10 transition"
+                            >
+                              Cancelar
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1291,6 +1464,10 @@ export function AdminAgenda({
                     Você pode reagendar (data/hora) e lançar serviços extras no
                     financeiro <span className="text-slate-300">sem alterar a agenda</span>.
                   </p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Esta tela não troca o serviço principal do agendamento. Ela apenas
+                    move data/hora e registra extras.
+                  </p>
                 </div>
 
                 <button
@@ -1461,6 +1638,109 @@ export function AdminAgenda({
                     className="text-xs px-4 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition disabled:opacity-60"
                   >
                     {editSaving ? "Salvando..." : "Salvar alterações"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pacoteEditOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={fecharEditarPacote} />
+          <div className="absolute inset-0 flex items-start justify-center p-4 md:p-6 overflow-y-auto">
+            <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+              <div className="p-4 border-b border-slate-700/60 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-slate-50">Editar ocorrência do pacote</h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Aqui você altera somente esta ocorrência do pacote, sem mudar a regra fixa semanal.
+                  </p>
+                </div>
+
+                <button
+                  onClick={fecharEditarPacote}
+                  className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                >
+                  Fechar
+                </button>
+              </div>
+
+              <div className="p-4 grid gap-3">
+                {pacoteEditErro && (
+                  <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg">
+                    {pacoteEditErro}
+                  </div>
+                )}
+
+                {pacoteEditSucesso && (
+                  <div className="bg-emerald-900/30 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg">
+                    {pacoteEditSucesso}
+                  </div>
+                )}
+
+                <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 text-xs">
+                  <div className="text-slate-200 font-medium">
+                    Cliente: {pacoteEditAg?.cliente?.nome || "—"}
+                  </div>
+                  <div className="text-slate-400 mt-1">
+                    Profissional: {pacoteEditAg?.profissional?.nome || "—"}
+                  </div>
+                  <div className="text-slate-400 mt-1">
+                    Regra original: {fmtBRDate(pacoteEditAg?.data_original || pacoteEditAg?.data)} às{" "}
+                    {pacoteEditAg?.hora_inicio?.slice(0, 5)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-slate-400 mb-1">Nova data</span>
+                    <input
+                      type="date"
+                      value={pacoteEditData}
+                      onChange={(e) => setPacoteEditData(e.target.value)}
+                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-slate-400 mb-1">Nova hora</span>
+                    <input
+                      type="time"
+                      value={pacoteEditHora}
+                      onChange={(e) => setPacoteEditHora(e.target.value)}
+                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-slate-400 mb-1">Observações (opcional)</span>
+                  <textarea
+                    rows={3}
+                    value={pacoteEditObservacoes}
+                    onChange={(e) => setPacoteEditObservacoes(e.target.value)}
+                    placeholder="Ex.: cliente pediu excepcionalmente outro horário nesta semana"
+                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm resize-none"
+                  />
+                </div>
+
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    onClick={fecharEditarPacote}
+                    disabled={pacoteEditSaving}
+                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    onClick={salvarEdicaoPacote}
+                    disabled={pacoteEditSaving}
+                    className="text-xs px-4 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition disabled:opacity-60"
+                  >
+                    {pacoteEditSaving ? "Salvando..." : "Salvar ocorrência"}
                   </button>
                 </div>
               </div>

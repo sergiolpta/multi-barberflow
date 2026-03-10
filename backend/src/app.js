@@ -21,6 +21,8 @@ import financeiroRouter from "./routes/financeiro.js";
 import produtosRouter from "./routes/produtos.js";
 import vendasRouter from "./routes/vendas.js";
 
+import internalPlatformRoutes from "./routes/internalPlatform.routes.js";
+
 const app = express();
 
 /* ---------------- Proxy ---------------- */
@@ -69,6 +71,10 @@ app.options("*", cors(corsOptions));
 /* ---------------- Parsers ---------------- */
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+/* ---------------- Internal platform routes ---------------- */
+/* IMPORTANTE: precisa vir depois do parser JSON */
+app.use(internalPlatformRoutes);
 
 /* ---------------- Rate limiting ---------------- */
 function makeLimiter(max) {

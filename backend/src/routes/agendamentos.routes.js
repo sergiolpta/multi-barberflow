@@ -1,4 +1,3 @@
-// backend/src/routes/agendamentos.routes.js
 import { Router } from "express";
 import {
   listarAgendamentos,
@@ -7,6 +6,8 @@ import {
   cancelarAgendamento,
   concluirAgendamento,
   adicionarExtrasAgendamento,
+  cancelarOcorrenciaPacote,
+  remarcarOcorrenciaPacote,
 } from "../controllers/agendamentos.controller.js";
 import { authAdminMiddleware } from "../middlewares/authAdmin.js";
 import { requireRole } from "../middlewares/requireRole.js";
@@ -46,7 +47,15 @@ router.get(
   listarAgendamentos
 );
 
-// REAGENDAR (admin)
+// CRIAR agendamento
+router.post(
+  "/",
+  ...adminWriteAccess,
+  validate(criarAgendamentoSchema),
+  criarAgendamento
+);
+
+// REAGENDAR agendamento normal (admin)
 router.put(
   "/:id/reagendar",
   ...adminWriteAccess,
@@ -54,7 +63,7 @@ router.put(
   reagendarAgendamento
 );
 
-// CANCELAR (admin)
+// CANCELAR agendamento normal (admin)
 router.post(
   "/:id/cancelar",
   ...adminWriteAccess,
@@ -62,7 +71,7 @@ router.post(
   cancelarAgendamento
 );
 
-// CONCLUIR (admin)
+// CONCLUIR agendamento normal (admin)
 router.patch(
   "/:id/concluir",
   ...adminWriteAccess,
@@ -70,7 +79,7 @@ router.patch(
   concluirAgendamento
 );
 
-// EXTRAS (admin)
+// EXTRAS em agendamento normal (admin)
 router.post(
   "/:id/extras",
   ...adminWriteAccess,
@@ -79,14 +88,21 @@ router.post(
 );
 
 // ===========================
-// CRIAR agendamento
+// ✅ OCORRÊNCIAS DE PACOTE
 // ===========================
 
+// Cancelar só a ocorrência daquele dia
 router.post(
-  "/",
+  "/pacotes/ocorrencias/cancelar",
   ...adminWriteAccess,
-  validate(criarAgendamentoSchema),
-  criarAgendamento
+  cancelarOcorrenciaPacote
+);
+
+// Remarcar só a ocorrência daquele dia
+router.post(
+  "/pacotes/ocorrencias/remarcar",
+  ...adminWriteAccess,
+  remarcarOcorrenciaPacote
 );
 
 export default router;

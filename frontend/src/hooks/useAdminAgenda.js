@@ -1,12 +1,13 @@
-// src/hooks/useAdminAgenda.js
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "../config/api";
 
 /**
  * Hook para carregar agenda do dia no painel Admin e operar:
- * - reagendamento
- * - cancelamento
+ * - reagendamento de agendamento normal
+ * - cancelamento de agendamento normal
  * - extras (lançamento no financeiro sem mexer na agenda)
+ * - cancelamento de ocorrência de pacote
+ * - remarcação de ocorrência de pacote
  *
  * Parâmetros:
  *  - data: YYYY-MM-DD (obrigatório)
@@ -79,6 +80,26 @@ export function useAdminAgenda({
     carregarAgenda();
   }, [carregarAgenda]);
 
+  function normalizarHoraHHMM(valor) {
+    let hora = String(valor || "").trim();
+
+    if (/^\d{2}:\d{2}:\d{2}$/.test(hora)) {
+      hora = hora.slice(0, 5);
+    }
+
+    if (!/^\d{2}:\d{2}$/.test(hora)) {
+      return null;
+    }
+
+    return hora;
+  }
+
+  function normalizarDataISO(valor) {
+    const s = String(valor || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    return s;
+  }
+
   async function reagendarAgendamento({ id, novaData, novaHora }) {
     if (!accessToken) throw new Error("Token de acesso não encontrado.");
 
@@ -86,14 +107,22 @@ export function useAdminAgenda({
       throw new Error("id, data e hora são obrigatórios para reagendar.");
     }
 
-    let horaUsada = String(novaHora);
-    if (horaUsada.length === 5) horaUsada = `${horaUsada}:00`;
+    const dataUsada = normalizarDataISO(novaData);
+    const horaUsada = normalizarHoraHHMM(novaHora);
+
+    if (!dataUsada) {
+      throw new Error("Data inválida para reagendamento. Use YYYY-MM-DD.");
+    }
+
+    if (!horaUsada) {
+      throw new Error("Hora inválida para reagendamento. Use HH:MM.");
+    }
 
     return apiFetch(`/agendamentos/${id}/reagendar`, {
       method: "PUT",
       accessToken,
       body: JSON.stringify({
-        data: novaData,
+        data: dataUsada,
         hora: horaUsada,
       }),
     });
@@ -157,13 +186,99 @@ export function useAdminAgenda({
     });
   }
 
+  async function cancelarOcorrenciaPacote({
+    pacoteId,
+    pacoteHorarioId,
+    dataOriginal,
+    observacoes,
+  }) {
+    if (!accessToken) throw new Error("Token de acesso não encontrado.");
+
+    const pacoteIdUsado = String(pacoteId || "").trim();
+    const pacoteHorarioIdUsado = String(pacoteHorarioId || "").trim();
+    const dataOriginalUsada = normalizarDataISO(dataOriginal);
+
+    if (!pacoteIdUsado || !pacoteHorarioIdUsado || !dataOriginalUsada) {
+      throw new Error(
+        "pacoteId, pacoteHorarioId e dataOriginal são obrigatórios para cancelar a ocorrência do pacote."
+      );
+    }
+
+    const body = {
+      pacote_id: pacoteIdUsado,
+      pacote_horario_id: pacoteHorarioIdUsado,
+      data_original: dataOriginalUsada,
+      ...(observacoes ? { observacoes: String(observacoes).trim() } : {}),
+    };
+
+    return apiFetch("/agendamentos/pacotes/ocorrencias/cancelar", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function remarcarOcorrenciaPacote({
+    pacoteId,
+    pacoteHorarioId,
+    dataOriginal,
+    novaData,
+    novaHora,
+    novaDuracaoMinutos,
+    observacoes,
+  }) {
+    if (!accessToken) throw new Error("Token de acesso não encontrado.");
+
+    const pacoteIdUsado = String(pacoteId || "").trim();
+    const pacoteHorarioIdUsado = String(pacoteHorarioId || "").trim();
+    const dataOriginalUsada = normalizarDataISO(dataOriginal);
+    const novaDataUsada = normalizarDataISO(novaData);
+    const novaHoraUsada = normalizarHoraHHMM(novaHora);
+
+    if (
+      !pacoteIdUsado ||
+      !pacoteHorarioIdUsado ||
+      !dataOriginalUsada ||
+      !novaDataUsada ||
+      !novaHoraUsada
+    ) {
+      throw new Error(
+        "pacoteId, pacoteHorarioId, dataOriginal, novaData e novaHora são obrigatórios para remarcar a ocorrência do pacote."
+      );
+    }
+
+    const body = {
+      pacote_id: pacoteIdUsado,
+      pacote_horario_id: pacoteHorarioIdUsado,
+      data_original: dataOriginalUsada,
+      nova_data: novaDataUsada,
+      nova_hora_inicio: novaHoraUsada,
+      ...(novaDuracaoMinutos != null && String(novaDuracaoMinutos).trim() !== ""
+        ? { nova_duracao_minutos: Number(novaDuracaoMinutos) }
+        : {}),
+      ...(observacoes ? { observacoes: String(observacoes).trim() } : {}),
+    };
+
+    return apiFetch("/agendamentos/pacotes/ocorrencias/remarcar", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(body),
+    });
+  }
+
   return {
     agenda,
     loadingAgenda,
     erroAgenda,
     recarregarAgenda: carregarAgenda,
+
+    // agendamento normal
     reagendarAgendamento,
     cancelarAgendamento,
     adicionarExtrasAgendamento,
+
+    // pacote
+    cancelarOcorrenciaPacote,
+    remarcarOcorrenciaPacote,
   };
 }
