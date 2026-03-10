@@ -1,6 +1,9 @@
 import { supabaseAdmin } from "../lib/supabase.js";
 import { calcularComissaoServico } from "../services/comissoes.service.js";
 
+const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
+const ADMIN_RETRO_TOLERANCE_MINUTES = 30;
+
 function getBarbeariaId(req) {
   return String(req?.user?.barbearia_id || "").trim() || null;
 }
@@ -82,6 +85,47 @@ function parsePositiveInt(value) {
   const n = Number(value);
   if (!Number.isInteger(n) || n <= 0) return null;
   return n;
+}
+
+function getNowInBusinessTimeZone() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = fmt.formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    time: `${map.hour}:${map.minute}:${map.second}`,
+    dateTime: `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}`,
+  };
+}
+
+function toComparableDateTime(dateISO, timeValue) {
+  const data = String(dateISO || "").trim();
+  const hora = normalizeHora(timeValue);
+
+  if (!parseDateOnly(data) || !hora) return null;
+
+  return Date.parse(`${data}T${hora}Z`);
+}
+
+function diffDaysBetweenISO(fromDateISO, toDateISO) {
+  const from = Date.parse(`${fromDateISO}T00:00:00Z`);
+  const to = Date.parse(`${toDateISO}T00:00:00Z`);
+  return Math.floor((to - from) / (1000 * 60 * 60 * 24));
+}
+
+function isSameISODate(a, b) {
+  return String(a || "").trim() === String(b || "").trim();
 }
 
 async function findOrCreateCliente({
@@ -592,6 +636,23 @@ export async function criarAgendamento(req, res) {
       return respondBarbeariaAusente(res);
     }
 
+    const dataISO = parseDateOnly(data);
+    const horaNormalizada = normalizeHora(hora);
+
+    if (!dataISO) {
+      return res.status(400).json({
+        error: "DATA_INVALIDA",
+        message: "Formato de data inválido.",
+      });
+    }
+
+    if (!horaNormalizada) {
+      return res.status(400).json({
+        error: "HORA_INVALIDA",
+        message: "Formato de hora inválido.",
+      });
+    }
+
     const clienteResolve = await findOrCreateCliente({
       barbeariaId,
       cliente_id,
@@ -609,54 +670,40 @@ export async function criarAgendamento(req, res) {
 
     const clienteIdFinal = clienteResolve.clienteId;
 
-    const agora = new Date();
-    const hoje = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
+    const agoraBiz = getNowInBusinessTimeZone();
+    const hojeBiz = agoraBiz.date;
 
-    const dataSelecionadaDia = new Date(`${data}T00:00:00`);
-    if (Number.isNaN(dataSelecionadaDia.getTime())) {
-      return res.status(400).json({
-        error: "DATA_INVALIDA",
-        message: "Formato de data inválido.",
-      });
-    }
-
-    if (dataSelecionadaDia.getTime() < hoje.getTime()) {
+    if (dataISO < hojeBiz) {
       return res.status(400).json({
         error: "DATA_PASSADA",
         message: "Não é permitido agendar para datas que já passaram.",
       });
     }
 
-    const agendamentoCompleto = new Date(`${data}T${hora}`);
-    if (Number.isNaN(agendamentoCompleto.getTime())) {
+    const agendamentoComparable = toComparableDateTime(dataISO, horaNormalizada);
+    const agoraComparable = toComparableDateTime(agoraBiz.date, agoraBiz.time);
+
+    if (agendamentoComparable == null || agoraComparable == null) {
       return res.status(400).json({
-        error: "HORA_INVALIDA",
-        message: "Formato de hora inválido.",
+        error: "DATA_HORA_INVALIDA",
+        message: "Não foi possível interpretar a data/hora do agendamento.",
       });
     }
 
-    const mesmaData =
-      dataSelecionadaDia.getFullYear() === hoje.getFullYear() &&
-      dataSelecionadaDia.getMonth() === hoje.getMonth() &&
-      dataSelecionadaDia.getDate() === hoje.getDate();
+    const mesmaData = isSameISODate(dataISO, hojeBiz);
 
-    if (mesmaData && agendamentoCompleto.getTime() < agora.getTime()) {
-      return res.status(400).json({
-        error: "HORA_PASSADA",
-        message: "Escolha um horário futuro.",
-      });
+    if (mesmaData) {
+      const limiteRetroativo = agoraComparable - ADMIN_RETRO_TOLERANCE_MINUTES * 60 * 1000;
+
+      if (agendamentoComparable < limiteRetroativo) {
+        return res.status(400).json({
+          error: "HORA_PASSADA",
+          message: `Para lançamento interno, só é permitido registrar horários de até ${ADMIN_RETRO_TOLERANCE_MINUTES} minutos atrás.`,
+        });
+      }
     }
 
-    const diffMs = dataSelecionadaDia.getTime() - hoje.getTime();
-    const diffDias = diffMs / (1000 * 60 * 60 * 24);
+    const diffDias = diffDaysBetweenISO(hojeBiz, dataISO);
 
     if (diffDias > 7) {
       return res.status(400).json({
@@ -687,16 +734,17 @@ export async function criarAgendamento(req, res) {
       });
     }
 
-    const hora_fim = adicionarMinutos(hora, servico.duracao_minutos);
+    const horaInicioHHMM = horaNormalizada.slice(0, 5);
+    const hora_fim = adicionarMinutos(horaInicioHHMM, servico.duracao_minutos);
 
     const { data: bloqueios, error: bloqueioError } = await supabaseAdmin
       .from("bloqueios_agenda")
       .select("id")
       .eq("barbearia_id", barbeariaId)
       .eq("profissional_id", profissional_id)
-      .eq("data", data)
+      .eq("data", dataISO)
       .lt("hora_inicio", hora_fim)
-      .gt("hora_fim", hora);
+      .gt("hora_fim", horaNormalizada);
 
     if (bloqueioError) {
       return res.status(500).json({
@@ -717,10 +765,10 @@ export async function criarAgendamento(req, res) {
       .select("id")
       .eq("barbearia_id", barbeariaId)
       .eq("profissional_id", profissional_id)
-      .eq("data", data)
+      .eq("data", dataISO)
       .eq("status", "confirmado")
       .lt("hora_inicio", hora_fim)
-      .gt("hora_fim", hora);
+      .gt("hora_fim", horaNormalizada);
 
     if (conflitoError) {
       return res.status(500).json({
@@ -745,8 +793,8 @@ export async function criarAgendamento(req, res) {
         cliente_id: clienteIdFinal,
         profissional_id,
         servico_id,
-        data,
-        hora_inicio: hora,
+        data: dataISO,
+        hora_inicio: horaNormalizada,
         hora_fim,
         status: "confirmado",
         preco_aplicado: precoAplicado,
@@ -1186,6 +1234,7 @@ export async function listarAgendamentos(req, res) {
             pacote_horario_id: ph.id,
             excecao_id: ex.id,
             data_original: ex.data_original,
+            duracao_minutos: dur,
           };
         })
         .filter(Boolean);
@@ -1506,6 +1555,23 @@ export async function reagendarAgendamento(req, res) {
       return respondBarbeariaAusente(res);
     }
 
+    const dataISO = parseDateOnly(data);
+    const horaNormalizada = normalizeHora(hora);
+
+    if (!dataISO) {
+      return res.status(400).json({
+        error: "DATA_INVALIDA",
+        message: "Formato de data inválido.",
+      });
+    }
+
+    if (!horaNormalizada) {
+      return res.status(400).json({
+        error: "HORA_INVALIDA",
+        message: "Formato de hora inválido.",
+      });
+    }
+
     const { data: agendamentoAtual, error: erroBusca } = await supabaseAdmin
       .from("agendamentos")
       .select("id, data, hora_inicio, hora_fim, profissional_id, servico_id, status")
@@ -1547,46 +1613,40 @@ export async function reagendarAgendamento(req, res) {
       });
     }
 
-    const agora = new Date();
-    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, 0, 0, 0);
-    const dataSelecionadaDia = new Date(`${data}T00:00:00`);
+    const agoraBiz = getNowInBusinessTimeZone();
+    const hojeBiz = agoraBiz.date;
 
-    if (Number.isNaN(dataSelecionadaDia.getTime())) {
-      return res.status(400).json({
-        error: "DATA_INVALIDA",
-        message: "Formato de data inválido.",
-      });
-    }
-
-    if (dataSelecionadaDia.getTime() < hoje.getTime()) {
+    if (dataISO < hojeBiz) {
       return res.status(400).json({
         error: "DATA_PASSADA",
         message: "Não é possível reagendar para uma data que já passou.",
       });
     }
 
-    const novaDataHora = new Date(`${data}T${hora}`);
-    if (Number.isNaN(novaDataHora.getTime())) {
+    const novaDataHoraComparable = toComparableDateTime(dataISO, horaNormalizada);
+    const agoraComparable = toComparableDateTime(agoraBiz.date, agoraBiz.time);
+
+    if (novaDataHoraComparable == null || agoraComparable == null) {
       return res.status(400).json({
-        error: "HORA_INVALIDA",
-        message: "Formato de hora inválido.",
+        error: "DATA_HORA_INVALIDA",
+        message: "Não foi possível interpretar a nova data/hora.",
       });
     }
 
-    const mesmaData =
-      dataSelecionadaDia.getFullYear() === hoje.getFullYear() &&
-      dataSelecionadaDia.getMonth() === hoje.getMonth() &&
-      dataSelecionadaDia.getDate() === hoje.getDate();
+    const mesmaData = isSameISODate(dataISO, hojeBiz);
 
-    if (mesmaData && novaDataHora.getTime() < agora.getTime()) {
-      return res.status(400).json({
-        error: "HORA_PASSADA",
-        message: "Escolha um horário futuro.",
-      });
+    if (mesmaData) {
+      const limiteRetroativo = agoraComparable - ADMIN_RETRO_TOLERANCE_MINUTES * 60 * 1000;
+
+      if (novaDataHoraComparable < limiteRetroativo) {
+        return res.status(400).json({
+          error: "HORA_PASSADA",
+          message: `Para lançamento interno, só é permitido registrar horários de até ${ADMIN_RETRO_TOLERANCE_MINUTES} minutos atrás.`,
+        });
+      }
     }
 
-    const diffMs = dataSelecionadaDia.getTime() - hoje.getTime();
-    const diffDias = diffMs / (1000 * 60 * 60 * 24);
+    const diffDias = diffDaysBetweenISO(hojeBiz, dataISO);
 
     if (diffDias > 7) {
       return res.status(400).json({
@@ -1617,16 +1677,17 @@ export async function reagendarAgendamento(req, res) {
       });
     }
 
-    const novaHoraFim = adicionarMinutos(hora, servico.duracao_minutos);
+    const horaInicioHHMM = horaNormalizada.slice(0, 5);
+    const novaHoraFim = adicionarMinutos(horaInicioHHMM, servico.duracao_minutos);
 
     const { data: bloqueios, error: bloqueioError } = await supabaseAdmin
       .from("bloqueios_agenda")
       .select("id")
       .eq("barbearia_id", barbeariaId)
       .eq("profissional_id", agendamentoAtual.profissional_id)
-      .eq("data", data)
+      .eq("data", dataISO)
       .lt("hora_inicio", novaHoraFim)
-      .gt("hora_fim", hora);
+      .gt("hora_fim", horaNormalizada);
 
     if (bloqueioError) {
       return res.status(500).json({
@@ -1647,10 +1708,10 @@ export async function reagendarAgendamento(req, res) {
       .select("id")
       .eq("barbearia_id", barbeariaId)
       .eq("profissional_id", agendamentoAtual.profissional_id)
-      .eq("data", data)
+      .eq("data", dataISO)
       .eq("status", "confirmado")
       .lt("hora_inicio", novaHoraFim)
-      .gt("hora_fim", hora)
+      .gt("hora_fim", horaNormalizada)
       .neq("id", id);
 
     if (conflitoError) {
@@ -1669,7 +1730,11 @@ export async function reagendarAgendamento(req, res) {
 
     const { data: atualizado, error: updateError } = await supabaseAdmin
       .from("agendamentos")
-      .update({ data, hora_inicio: hora, hora_fim: novaHoraFim })
+      .update({
+        data: dataISO,
+        hora_inicio: horaNormalizada,
+        hora_fim: novaHoraFim,
+      })
       .eq("id", id)
       .eq("barbearia_id", barbeariaId)
       .select("id, data, hora_inicio, hora_fim, status, preco_aplicado, comissao_valor")
