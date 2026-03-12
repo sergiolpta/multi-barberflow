@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminAgenda } from "./components/admin/AdminAgenda";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import { useAdminAuth } from "./hooks/useAdminAuth";
@@ -10,9 +10,66 @@ import { AdminProdutos } from "./components/admin/AdminProdutos";
 import { AdminVendas } from "./components/admin/AdminVendas";
 import { apiFetch } from "./config/api";
 
+const THEME_STORAGE_KEY = "barberflow_admin_theme";
+
+function resolveThemeClass(temaAdmin) {
+  if (temaAdmin === "light") return "theme-light";
+
+  if (temaAdmin === "system") {
+    if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+      return "theme-light";
+    }
+    return "theme-dark";
+  }
+
+  return "theme-dark";
+}
+
+function getStoredTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === "light" || saved === "dark" ? saved : "";
+  } catch {
+    return "";
+  }
+}
+
+function getThemePreferenceLabel(theme) {
+  return theme === "light" ? "Light" : "Dark";
+}
+
+function HomeCard({ title, description, accent = "default", onClick }) {
+  const accentMap = {
+    default: "from-slate-500/20 to-transparent text-[var(--text-app)]",
+    sky: "from-sky-500/20 to-transparent text-sky-600",
+    emerald: "from-emerald-500/20 to-transparent text-emerald-700",
+    violet: "from-violet-500/20 to-transparent text-violet-700",
+    amber: "from-amber-500/20 to-transparent text-amber-700",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-5 text-left shadow-[var(--shadow-panel)] transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--bg-panel-strong)]"
+    >
+      <div
+        className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${accentMap[accent] || accentMap.default}`}
+      />
+      <div className="relative">
+        <h2 className="mb-2 text-base font-bold text-[var(--text-app)]">{title}</h2>
+        <p className="text-sm leading-relaxed text-[var(--text-muted)]">{description}</p>
+        <div className="mt-4 text-[11px] font-medium text-[var(--text-soft)] transition group-hover:text-[var(--text-app)]">
+
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function App() {
   const [modoAdmin, setModoAdmin] = useState("adminHome");
   const [profissionais, setProfissionais] = useState([]);
+  const [temaPreferido, setTemaPreferido] = useState(() => getStoredTheme());
 
   const {
     user,
@@ -21,11 +78,28 @@ export default function App() {
     adminBarbeariaId,
     adminBarbeariaNome,
     adminBarbeariaLogoUrl,
+    adminBarbeariaTemaAdmin,
     loading: loadingAuth,
     erro: authError,
     login,
     logout,
   } = useAdminAuth();
+
+  const temaEfetivo = useMemo(() => {
+    return temaPreferido || adminBarbeariaTemaAdmin || "dark";
+  }, [temaPreferido, adminBarbeariaTemaAdmin]);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const themeClass = resolveThemeClass(temaEfetivo);
+
+    html.classList.remove("theme-dark", "theme-light");
+    html.classList.add(themeClass);
+
+    return () => {
+      html.classList.remove("theme-dark", "theme-light");
+    };
+  }, [temaEfetivo]);
 
   useEffect(() => {
     async function carregarProfissionais() {
@@ -44,8 +118,8 @@ export default function App() {
           Array.isArray(data)
             ? data
             : Array.isArray(data?.profissionais)
-              ? data.profissionais
-              : []
+            ? data.profissionais
+            : []
         );
       } catch (err) {
         console.error("Erro ao carregar profissionais:", err);
@@ -56,13 +130,51 @@ export default function App() {
     carregarProfissionais();
   }, [accessToken, user]);
 
+  function alternarTema() {
+    const proximoTema = resolveThemeClass(temaEfetivo) === "theme-light" ? "dark" : "light";
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, proximoTema);
+    } catch {
+      // ignore
+    }
+
+    setTemaPreferido(proximoTema);
+  }
+
+  function limparTemaPreferido() {
+    try {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+
+    setTemaPreferido("");
+  }
+
   const isOwner = adminRole === "admin_owner";
   const podeProdutosEVendas = ["admin_owner", "admin_staff"].includes(adminRole);
 
+  const resumoPermissao = useMemo(() => {
+    if (adminRole === "admin_owner") {
+      return "Acesso completo ao painel, financeiro, equipe, agenda, estoque e vendas.";
+    }
+
+    if (adminRole === "admin_staff") {
+      return "Acesso operacional para agenda, serviços, produtos e vendas.";
+    }
+
+    return "Acesso administrativo limitado conforme o perfil configurado.";
+  }, [adminRole]);
+
+  const temaAtualLabel = getThemePreferenceLabel(
+    resolveThemeClass(temaEfetivo) === "theme-light" ? "light" : "dark"
+  );
+
   if (loadingAuth) {
     return (
-      <div className="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center">
-        <p className="text-sm text-slate-400">Verificando sessão...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-app)] text-[var(--text-app)]">
+        <p className="text-sm text-[var(--text-muted)]">Verificando sessão...</p>
       </div>
     );
   }
@@ -77,14 +189,14 @@ export default function App() {
 
   if (authError) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg-app)] text-[var(--text-app)]">
         <div className="w-full max-w-xl space-y-4">
-          <div className="rounded-2xl border border-red-700/60 bg-red-900/30 p-4">
-            <p className="text-sm text-red-200">
+          <div className="rounded-2xl border border-red-700/30 bg-red-500/10 p-4">
+            <p className="text-sm text-red-600">
               Falha na autenticação/permissões:{" "}
               <span className="font-semibold">{authError}</span>
             </p>
-            <p className="text-xs text-slate-300 mt-2">
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
               Verifique o backend (/me), o token e a role do usuário em user_roles.
             </p>
           </div>
@@ -94,7 +206,7 @@ export default function App() {
               onClick={async () => {
                 await logout();
               }}
-              className="text-xs px-3 py-2 rounded-lg border border-red-700 text-red-200 hover:bg-red-900/50 transition"
+              className="rounded-lg border border-red-500/40 px-3 py-2 text-xs text-red-600 transition hover:bg-red-500/10"
             >
               Sair
             </button>
@@ -106,133 +218,145 @@ export default function App() {
 
   if (modoAdmin === "adminHome") {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
-        <div className="w-full max-w-3xl space-y-6">
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              {adminBarbeariaLogoUrl ? (
-                <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={adminBarbeariaLogoUrl}
-                    alt={adminBarbeariaNome || "Logo da barbearia"}
-                    className="max-h-full max-w-full object-contain"
-                  />
+      <div className="min-h-screen bg-[var(--bg-app)] px-4 py-4 text-[var(--text-app)] md:py-6 lg:py-8">
+        <div className="mx-auto w-full max-w-7xl">
+          <header className="mb-4 overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl md:mb-6">
+            <div className="h-1 w-full bg-gradient-to-r from-sky-500 via-violet-500 to-emerald-500" />
+            <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                {adminBarbeariaLogoUrl ? (
+                  <div className="flex h-16 w-16 md:h-20 md:w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                    <img
+                      src={adminBarbeariaLogoUrl}
+                      alt={adminBarbeariaNome || "Logo da barbearia"}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-sky-500/10 text-3xl">
+                    💈
+                  </div>
+                )}
+
+                <div className="min-w-0">
+                  <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                    Painel administrativo
+                  </div>
+
+                  <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
+                    {adminBarbeariaNome || "Área administrativa"}
+                  </h1>
+
+                  <p className="mt-2 text-sm text-[var(--text-muted)] md:text-[15px]">
+                    Bem-vindo ao centro de operação da barbearia. Escolha o módulo que deseja gerenciar.
+                  </p>
+
+                  <div className="mt-3 space-y-1 text-[12px] text-[var(--text-muted)]">
+                    <p>
+                      Usuário:{" "}
+                      <span className="font-medium text-[var(--text-app)]">{user?.email}</span>
+                    </p>
+                    <p>
+                      Perfil:{" "}
+                      <span className="font-medium text-[var(--text-app)]">{adminRole || "—"}</span>
+                    </p>
+                    <p>{resumoPermissao}</p>
+                    <p>
+                      
+                      <span className="font-medium text-[var(--text-app)]">{temaAtualLabel}</span>
+                      
+                    </p>
+                  </div>
                 </div>
-              ) : null}
-
-              <div>
-                <h1 className="text-2xl font-bold text-slate-50">
-                  {adminBarbeariaNome || "Área administrativa"}
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">
-                  Você está autenticado como{" "}
-                  <span className="font-medium text-slate-200">{user?.email}</span> (
-                  <span className="font-medium text-slate-200">{adminRole || "—"}</span>).
-                </p>
               </div>
-            </div>
 
-            <div className="flex flex-col items-start sm:items-end gap-2">
-              <button
-                onClick={async () => {
-                  await logout();
-                }}
-                className="text-[11px] px-3 py-1 rounded-lg border border-red-700 text-red-300 hover:bg-red-900/60 transition"
-              >
-                Sair
-              </button>
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={alternarTema}
+                    className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-panel)]"
+                  >
+                    Alternar para {temaAtualLabel === "Light" ? "Dark" : "Light"}
+                  </button>
+
+                  {temaPreferido ? (
+                    <button
+                      onClick={limparTemaPreferido}
+                      className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+                    >
+                      Usar padrão da barbearia
+                    </button>
+                  ) : null}
+                </div>
+
+                <button
+                  onClick={async () => {
+                    await logout();
+                  }}
+                  className="inline-flex items-center justify-center rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-500/15"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
           </header>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <HomeCard
+              title="Agenda do dia"
+              description="Visualize compromissos, bloqueios, pacotes e faça ajustes operacionais em tempo real."
+              accent="emerald"
               onClick={() => setModoAdmin("agenda")}
-              className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-            >
-              <h2 className="font-semibold text-slate-50 mb-1">Agenda do dia</h2>
-              <p className="text-xs text-slate-400">
-                Ver compromissos, pacotes e bloqueios em tempo real.
-              </p>
-            </button>
+            />
 
-            {isOwner ? (
-              <button
+            {isOwner && (
+              <HomeCard
+                title="Financeiro"
+                description="Acompanhe resultados, fechamento, despesas, adiantamentos e indicadores do período."
+                accent="emerald"
                 onClick={() => setModoAdmin("financeiro")}
-                className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-              >
-                <h2 className="font-semibold text-emerald-300 mb-1">Financeiro</h2>
-                <p className="text-xs text-slate-400">
-                  Faturamento, ticket médio, atendimentos e relatórios.
-                </p>
-              </button>
-            ) : (
-              <button
-                onClick={() => setModoAdmin("servicos")}
-                className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition sm:col-start-2"
-              >
-                <h2 className="font-semibold text-slate-50 mb-1">Serviços</h2>
-                <p className="text-xs text-slate-400">
-                  Gerenciar lista de serviços, duração e valores.
-                </p>
-              </button>
+              />
             )}
 
-            {!isOwner ? null : (
-              <button
-                onClick={() => setModoAdmin("servicos")}
-                className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-              >
-                <h2 className="font-semibold text-slate-50 mb-1">Serviços</h2>
-                <p className="text-xs text-slate-400">
-                  Gerenciar lista de serviços, duração e valores.
-                </p>
-              </button>
-            )}
+            <HomeCard
+              title="Serviços"
+              description="Cadastre, edite e organize o catálogo de serviços da barbearia."
+              accent="sky"
+              onClick={() => setModoAdmin("servicos")}
+            />
 
-            {podeProdutosEVendas && (
-              <button
-                onClick={() => setModoAdmin("produtos")}
-                className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-              >
-                <h2 className="font-semibold text-sky-300 mb-1">Produtos</h2>
-                <p className="text-xs text-slate-400">
-                  Cadastro de produtos, custos, preços e estoque.
-                </p>
-              </button>
-            )}
-
-            {podeProdutosEVendas && (
-              <button
-                onClick={() => setModoAdmin("vendas")}
-                className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-              >
-                <h2 className="font-semibold text-emerald-300 mb-1">Vendas (PDV)</h2>
-                <p className="text-xs text-slate-400">
-                  Venda de balcão com baixa automática no estoque.
-                </p>
-              </button>
-            )}
-
-            <button
+            <HomeCard
+              title="Profissionais"
+              description="Gerencie equipe, status, comissões base e regras específicas por serviço."
+              accent="violet"
               onClick={() => setModoAdmin("profissionais")}
-              className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-            >
-              <h2 className="font-semibold text-slate-50 mb-1">Profissionais</h2>
-              <p className="text-xs text-slate-400">
-                Cadastrar e editar barbeiros e seus dados.
-              </p>
-            </button>
+            />
 
-            <button
+            <HomeCard
+              title="Pacotes fixos"
+              description="Controle clientes recorrentes, horários reservados e cobrança mensal dos pacotes."
+              accent="sky"
               onClick={() => setModoAdmin("pacotes")}
-              className="rounded-2xl border border-slate-700 bg-slate-800/40 px-4 py-4 text-left hover:bg-slate-800 transition"
-            >
-              <h2 className="font-semibold text-sky-300 mb-1">Pacotes fixos</h2>
-              <p className="text-xs text-slate-400">
-                Gerenciar horários recorrentes e clientes de pacote.
-              </p>
-            </button>
-          </div>
+            />
+
+            {podeProdutosEVendas && (
+              <HomeCard
+                title="Produtos"
+                description="Controle estoque, preços e ativação dos produtos vendidos no balcão."
+                accent="amber"
+                onClick={() => setModoAdmin("produtos")}
+              />
+            )}
+
+            {podeProdutosEVendas && (
+              <HomeCard
+                title="Vendas (PDV)"
+                description="Registre vendas rápidas, dê baixa no estoque e aplique comissão por profissional."
+                accent="emerald"
+                onClick={() => setModoAdmin("vendas")}
+              />
+            )}
+          </section>
         </div>
       </div>
     );

@@ -129,6 +129,15 @@ export function AdminAgenda({
     return [];
   }
 
+  function formatBRL(valor) {
+    const n = Number(valor ?? 0);
+    if (!Number.isFinite(n)) return "R$ 0,00";
+    return n.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
+
   const [bloqueioProfissionalId, setBloqueioProfissionalId] = useState("");
   const [bloqueioData, setBloqueioData] = useState(hoje);
   const [bloqueioDiaInteiro, setBloqueioDiaInteiro] = useState(false);
@@ -846,83 +855,103 @@ export function AdminAgenda({
     podeVerFinanceiro && typeof onIrFinanceiro === "function";
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-5xl">
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            {barbeariaLogoUrl ? (
-              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="max-h-full max-w-full object-contain"
-                />
-              </div>
-            ) : null}
-
-            <div>
-              <h1 className="text-2xl font-bold text-slate-50">
-                {barbeariaNome || "Agenda do dia"}
-              </h1>
-              <p className="text-sm text-slate-400 mt-1">
-                Visualize compromissos, edite/cancele e bloqueie horários.
-              </p>
-
-              {!podeGerirAgenda && (
-                <p className="text-[11px] text-slate-500 mt-2">
-                  Seu perfil pode visualizar a agenda, mas não pode editar/cancelar
-                  ou bloquear horários.
-                </p>
+    <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-app)] px-4 py-8 md:py-10">
+      <div className="mx-auto w-full max-w-6xl">
+        <header className="mb-8 rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl overflow-hidden">
+          <div className="h-1 w-full bg-gradient-to-r from-sky-500 via-emerald-400 to-indigo-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              {barbeariaLogoUrl ? (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-[var(--accent-primary-soft)] text-3xl">
+                  ✂️
+                </div>
               )}
+
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  Agenda operacional
+                </div>
+
+                <h1 className="max-w-2xl text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
+                  {barbeariaNome || "Agenda do dia"}
+                </h1>
+
+                <p className="mt-2 max-w-2xl text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Visualize compromissos, reagende horários, registre extras e mantenha a operação organizada em tempo real.
+                </p>
+
+                {!podeGerirAgenda && (
+                  <p className="mt-3 text-[12px] text-[var(--text-soft)]">
+                    Seu perfil pode visualizar a agenda, mas não pode editar, cancelar ou bloquear horários.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {mostrarBotaoFinanceiro && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <button
-                onClick={onIrFinanceiro}
-                className="text-xs px-3 py-1 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition"
+                onClick={abrirNovoAgendamento}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-[1px] hover:opacity-95"
               >
-                Ir para Financeiro
+                <span className="text-base leading-none">＋</span>
+                Novo agendamento
               </button>
-            )}
 
-            <button
-              onClick={abrirNovoAgendamento}
-              className="text-xs px-3 py-1 rounded-lg border border-sky-600 text-sky-200 hover:bg-sky-600/10 transition"
-            >
-              Novo agendamento
-            </button>
+              {mostrarBotaoFinanceiro && (
+                <button
+                  onClick={onIrFinanceiro}
+                  className="inline-flex items-center justify-center rounded-xl border border-emerald-500/70 bg-emerald-500/5 px-4 py-2.5 text-sm font-medium text-emerald-600 transition hover:bg-emerald-500/10"
+                >
+                  Ir para Financeiro
+                </button>
+              )}
 
-            <button
-              onClick={onVoltar}
-              className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-            >
-              Voltar ao painel
-            </button>
+              <button
+                onClick={onVoltar}
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+              >
+                Voltar ao painel
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-[1.5fr]">
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-              <h2 className="font-semibold text-slate-100 flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
-                Compromissos
-              </h2>
+        <div className="grid gap-6 xl:grid-cols-[1.55fr_0.95fr]">
+          <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600">
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  Operação do dia
+                </div>
+                <h2 className="text-lg font-bold text-[var(--text-app)] md:text-xl">
+                  Compromissos
+                </h2>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  Filtre por data e profissional para acompanhar a agenda em detalhe.
+                </p>
+              </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <input
                   type="date"
                   value={dataAgenda}
                   onChange={(e) => setDataAgenda(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 text-sm rounded-lg px-2 py-1 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-app)] shadow-sm outline-none transition focus:border-sky-500"
                 />
 
                 <select
                   value={profissionalFiltro}
                   onChange={(e) => setProfissionalFiltro(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 text-sm rounded-lg px-2 py-1 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-app)] shadow-sm outline-none transition focus:border-sky-500"
                   disabled={loadingProfissionais}
                 >
                   <option value="">Todos os profissionais</option>
@@ -935,7 +964,7 @@ export function AdminAgenda({
 
                 <button
                   onClick={recarregarAgenda}
-                  className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
                 >
                   Atualizar
                 </button>
@@ -943,21 +972,23 @@ export function AdminAgenda({
             </div>
 
             {erroAgenda && (
-              <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                 {erroAgenda}
               </div>
             )}
 
             {erroProfissionais && (
-              <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                 {erroProfissionais}
               </div>
             )}
 
             {loadingAgenda ? (
-              <p className="text-sm text-slate-400">Carregando agenda...</p>
+              <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Carregando agenda...
+              </div>
             ) : agenda && agenda.length > 0 ? (
-              <ul className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              <ul className="space-y-3">
                 {agenda.map((ag) => {
                   const extrasTotalSrv =
                     ag?.extras_total != null ? Number(ag.extras_total) : null;
@@ -973,134 +1004,166 @@ export function AdminAgenda({
                     (Number.isFinite(extrasCount) && extrasCount > 0) ||
                     !!extrasResumo;
 
+                  const isPacote =
+                    ag.status === "pacote" || ag.status === "pacote_remarcado";
+
                   return (
                     <li
                       key={ag.id}
-                      className="bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2 text-xs flex justify-between items-start gap-3"
+                      className="group overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-soft)] transition hover:-translate-y-[1px] hover:shadow-[var(--shadow-panel)]"
                     >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-slate-100">
-                          {ag.hora_inicio?.slice(0, 5)} — {ag.hora_fim?.slice(0, 5)}
-                        </div>
+                      <div className="flex h-full">
+                        <div
+                          className={[
+                            "w-1.5 shrink-0",
+                            ag.status === "pacote"
+                              ? "bg-sky-500"
+                              : ag.status === "pacote_remarcado"
+                              ? "bg-amber-500"
+                              : "bg-emerald-500",
+                          ].join(" ")}
+                        />
+                        <div className="flex-1 p-4">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center rounded-full bg-[var(--accent-primary-soft)] px-3 py-1 text-[11px] font-bold tracking-wide text-[var(--accent-primary)]">
+                                  {ag.hora_inicio?.slice(0, 5)} — {ag.hora_fim?.slice(0, 5)}
+                                </span>
 
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-slate-200">
-                            {ag.servico?.nome || "Serviço"}
-                          </span>
+                                {ag.status === "pacote" && (
+                                  <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-semibold text-sky-600">
+                                    Pacote fixo
+                                  </span>
+                                )}
 
-                          {ag.status === "pacote" && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-900/60 text-sky-100 border border-sky-600">
-                              Pacote fixo
-                            </span>
-                          )}
+                                {ag.status === "pacote_remarcado" && (
+                                  <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-600">
+                                    Pacote remarcado
+                                  </span>
+                                )}
 
-                          {ag.status === "pacote_remarcado" && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-900/60 text-amber-100 border border-amber-600">
-                              Pacote remarcado
-                            </span>
-                          )}
+                                {temExtras && (
+                                  <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-600">
+                                    {Number.isFinite(extrasTotalSrv) && extrasTotalSrv > 0
+                                      ? `Extras ${formatBRL(extrasTotalSrv)}`
+                                      : extrasResumo
+                                      ? `Extras: ${extrasResumo}`
+                                      : `Extras: ${extrasCount ?? "—"}`}
+                                  </span>
+                                )}
+                              </div>
 
-                          {temExtras && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/30 text-emerald-100 border border-emerald-600">
-                              {Number.isFinite(extrasTotalSrv) && extrasTotalSrv > 0
-                                ? `+ R$ ${extrasTotalSrv.toFixed(2)} extras`
-                                : extrasResumo
-                                ? `Extras: ${extrasResumo}`
-                                : `Extras: ${extrasCount ?? "—"}`}
-                            </span>
-                          )}
-                        </div>
+                              <h3 className="text-base font-bold text-[var(--text-app)]">
+                                {ag.servico?.nome || "Serviço"}
+                              </h3>
 
-                        <div className="text-slate-400 text-[11px] mt-0.5">
-                          Cliente: {ag.cliente?.nome || "—"} • {ag.cliente?.whatsapp || ""}
-                        </div>
-                      </div>
-
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <div>
-                          <div className="text-[11px] text-slate-400">Profissional</div>
-                          <div className="text-[13px] text-slate-100 font-medium">
-                            {ag.profissional?.nome || "—"}
-                          </div>
-
-                          {ag.servico?.preco != null && (
-                            <div className="text-[12px] text-emerald-400 font-semibold mt-1">
-                              R$ {Number(ag.servico.preco).toFixed(2)}
+                              <div className="mt-2 grid gap-2 text-[12px] text-[var(--text-muted)] sm:grid-cols-2">
+                                <div>
+                                  <span className="font-semibold text-[var(--text-app)]">Cliente:</span>{" "}
+                                  {ag.cliente?.nome || "—"}
+                                  {ag.cliente?.whatsapp ? ` • ${ag.cliente.whatsapp}` : ""}
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-[var(--text-app)]">Profissional:</span>{" "}
+                                  {ag.profissional?.nome || "—"}
+                                </div>
+                              </div>
                             </div>
-                          )}
+
+                            <div className="flex min-w-[150px] flex-col items-start gap-3 md:items-end">
+                              {ag.servico?.preco != null && (
+                                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-right">
+                                  <div className="text-[10px] uppercase tracking-wide text-emerald-700/80">
+                                    Valor
+                                  </div>
+                                  <div className="text-sm font-bold text-emerald-700">
+                                    {formatBRL(ag.servico.preco)}
+                                  </div>
+                                </div>
+                              )}
+
+                              {podeGerirAgenda && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleEditar(ag)}
+                                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-app)]"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => handleCancelar(ag)}
+                                    className={[
+                                      "rounded-xl border px-3 py-2 text-[11px] font-medium transition",
+                                      isPacote
+                                        ? "border-rose-500/60 text-rose-600 hover:bg-rose-500/10"
+                                        : "border-rose-500/60 text-rose-600 hover:bg-rose-500/10",
+                                    ].join(" ")}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-
-                        {podeGerirAgenda && ag.status !== "pacote" && ag.status !== "pacote_remarcado" && (
-                          <div className="flex gap-1 mt-1">
-                            <button
-                              onClick={() => handleEditar(ag)}
-                              className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleCancelar(ag)}
-                              className="px-2 py-1 rounded-lg border border-rose-600 text-rose-200 text-[10px] hover:bg-rose-600/10 transition"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        )}
-
-                        {podeGerirAgenda && (ag.status === "pacote" || ag.status === "pacote_remarcado") && (
-                          <div className="flex gap-1 mt-1">
-                            <button
-                              onClick={() => handleEditar(ag)}
-                              className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleCancelar(ag)}
-                              className="px-2 py-1 rounded-lg border border-rose-600 text-rose-200 text-[10px] hover:bg-rose-600/10 transition"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400">Nenhum agendamento para este dia.</p>
+              <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-primary-soft)] text-xl">
+                  📅
+                </div>
+                <p className="text-sm font-medium text-[var(--text-app)]">
+                  Nenhum agendamento para este dia
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Ajuste os filtros ou crie um novo agendamento para preencher a agenda.
+                </p>
+              </div>
             )}
+          </section>
+
+          <aside className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+            <div className="mb-5">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[11px] font-semibold text-rose-600">
+                <span className="inline-block h-2 w-2 rounded-full bg-rose-500" />
+                Gestão de indisponibilidade
+              </div>
+              <h2 className="text-lg font-bold text-[var(--text-app)] md:text-xl">
+                Bloquear horário / dia
+              </h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
+                Reserve períodos indisponíveis para férias, pausas, cursos ou imprevistos.
+              </p>
+            </div>
 
             {podeGerirAgenda ? (
-              <div className="mt-6 pt-4 border-t border-slate-700/60">
-                <h3 className="font-semibold text-slate-100 mb-2 text-sm flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-rose-400" />
-                  Bloquear horário / dia
-                </h3>
-
+              <>
                 {bloqueioErro && (
-                  <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-2">
+                  <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                     {bloqueioErro}
                   </div>
                 )}
 
                 {bloqueioSucesso && (
-                  <div className="bg-emerald-900/30 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg mb-2">
+                  <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
                     {bloqueioSucesso}
                   </div>
                 )}
 
-                <form
-                  onSubmit={handleCriarBloqueio}
-                  className="grid gap-2 md:grid-cols-2 text-xs"
-                >
+                <form onSubmit={handleCriarBloqueio} className="space-y-4">
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Profissional</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Profissional
+                    </span>
                     <select
                       value={bloqueioProfissionalId || profissionalFiltro}
                       onChange={(e) => setBloqueioProfissionalId(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                       disabled={loadingProfissionais}
                     >
                       <option value="">Selecione</option>
@@ -1113,174 +1176,205 @@ export function AdminAgenda({
                   </div>
 
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Data do bloqueio</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Data do bloqueio
+                    </span>
                     <input
                       type="date"
                       value={bloqueioData}
                       onChange={(e) => setBloqueioData(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 col-span-2 mt-1">
+                  <label className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-3 text-sm text-[var(--text-app)]">
                     <input
                       id="bloqueio-dia-inteiro"
                       type="checkbox"
                       checked={bloqueioDiaInteiro}
                       onChange={(e) => setBloqueioDiaInteiro(e.target.checked)}
-                      className="w-3 h-3"
+                      className="h-4 w-4"
                     />
-                    <label
-                      htmlFor="bloqueio-dia-inteiro"
-                      className="text-[11px] text-slate-300"
-                    >
-                      Bloquear dia inteiro
-                    </label>
-                  </div>
+                    Bloquear dia inteiro
+                  </label>
 
                   {!bloqueioDiaInteiro && (
-                    <>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                       <div className="flex flex-col">
-                        <span className="text-[11px] text-slate-400 mb-1">Hora inicial</span>
+                        <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                          Hora inicial
+                        </span>
                         <input
                           type="time"
                           value={bloqueioHoraInicio}
                           onChange={(e) => setBloqueioHoraInicio(e.target.value)}
-                          className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                          className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                         />
                       </div>
+
                       <div className="flex flex-col">
-                        <span className="text-[11px] text-slate-400 mb-1">Hora final</span>
+                        <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                          Hora final
+                        </span>
                         <input
                           type="time"
                           value={bloqueioHoraFim}
                           onChange={(e) => setBloqueioHoraFim(e.target.value)}
-                          className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                          className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                         />
                       </div>
-                    </>
+                    </div>
                   )}
 
-                  <div className="col-span-2 mt-2">
-                    <button
-                      type="submit"
-                      disabled={bloqueioLoading}
-                      className="w-full text-xs px-3 py-2 rounded-lg border border-rose-500 text-rose-100 hover:bg-rose-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                    >
-                      {bloqueioLoading ? "Aplicando bloqueio..." : "Aplicar bloqueio"}
-                    </button>
-                  </div>
+                  <button
+                    type="submit"
+                    disabled={bloqueioLoading}
+                    className="w-full rounded-xl border border-rose-500 bg-rose-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {bloqueioLoading ? "Aplicando bloqueio..." : "Aplicar bloqueio"}
+                  </button>
                 </form>
-              </div>
+              </>
             ) : (
-              <p className="text-[11px] text-slate-500 mt-4">
-                Seu perfil não tem permissão para bloquear horários.
-              </p>
+              <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-8 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/10 text-xl">
+                  ⛔
+                </div>
+                <p className="text-sm font-medium text-[var(--text-app)]">
+                  Sem permissão para bloquear horários
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  Seu perfil pode apenas visualizar esta agenda.
+                </p>
+              </div>
             )}
-          </section>
+          </aside>
         </div>
       </div>
 
       {novoOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={fecharNovoAgendamento} />
-          <div className="absolute inset-0 flex items-start justify-center p-4 md:p-6 overflow-y-auto">
-            <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-              <div className="p-4 border-b border-slate-700/60 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-slate-50">Novo agendamento</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Busque cliente pelo nome (autocomplete) ou cadastre um novo com
-                    WhatsApp e nascimento.
-                  </p>
-                </div>
+          <div
+            className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+            onClick={fecharNovoAgendamento}
+          />
+          <div className="absolute inset-0 flex items-start justify-center overflow-y-auto p-4 md:p-6">
+            <div className="relative w-full max-w-4xl overflow-y-auto rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-panel)]">
+              <div className="border-b border-[var(--border-color)] p-5 md:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 inline-flex items-center rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold text-sky-600">
+                      Novo atendimento
+                    </div>
+                    <h3 className="text-xl font-bold text-[var(--text-app)]">
+                      Novo agendamento
+                    </h3>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      Busque um cliente existente ou cadastre um novo e selecione um horário disponível.
+                    </p>
+                  </div>
 
-                <button
-                  onClick={fecharNovoAgendamento}
-                  className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-                >
-                  Fechar
-                </button>
+                  <button
+                    onClick={fecharNovoAgendamento}
+                    className="shrink-0 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
 
-              <div className="p-4 grid gap-3">
+              <div className="grid gap-4 p-5 md:p-6">
                 {novoErro && (
-                  <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                     {novoErro}
                   </div>
                 )}
                 {novoSucesso && (
-                  <div className="bg-emerald-900/30 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
                     {novoSucesso}
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Profissional</span>
-                    <select
-                      value={novoProfissionalId}
-                      onChange={(e) => setNovoProfissionalId(e.target.value)}
-                      disabled={loadingProfissionais}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                    >
-                      <option value="">Selecione</option>
-                      {profissionais?.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+                  <h4 className="mb-3 text-sm font-bold text-[var(--text-app)]">
+                    Dados do agendamento
+                  </h4>
 
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Serviço</span>
-                    <select
-                      value={novoServicoId}
-                      onChange={(e) => setNovoServicoId(e.target.value)}
-                      disabled={servicosLoading}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm disabled:opacity-60"
-                    >
-                      <option value="">
-                        {servicosLoading ? "Carregando..." : "Selecione"}
-                      </option>
-                      {servicos?.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.nome}
-                          {s.preco != null ? ` — R$ ${Number(s.preco).toFixed(2)}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    {servicosErro && (
-                      <span className="text-[11px] text-red-300 mt-1">{servicosErro}</span>
-                    )}
-                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Profissional
+                      </span>
+                      <select
+                        value={novoProfissionalId}
+                        onChange={(e) => setNovoProfissionalId(e.target.value)}
+                        disabled={loadingProfissionais}
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
+                      >
+                        <option value="">Selecione</option>
+                        {profissionais?.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Data</span>
-                    <input
-                      type="date"
-                      value={novoData}
-                      onChange={(e) => setNovoData(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                    />
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Serviço
+                      </span>
+                      <select
+                        value={novoServicoId}
+                        onChange={(e) => setNovoServicoId(e.target.value)}
+                        disabled={servicosLoading}
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500 disabled:opacity-60"
+                      >
+                        <option value="">
+                          {servicosLoading ? "Carregando..." : "Selecione"}
+                        </option>
+                        {servicos?.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nome}
+                            {s.preco != null ? ` — ${formatBRL(s.preco)}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {servicosErro && (
+                        <span className="mt-1 text-[11px] text-red-500">{servicosErro}</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Data
+                      </span>
+                      <input
+                        type="date"
+                        value={novoData}
+                        onChange={(e) => setNovoData(e.target.value)}
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-2 pt-3 border-t border-slate-700/60">
-                  <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-100">Cliente</h4>
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-bold text-[var(--text-app)]">
+                      Cliente
+                    </h4>
                     {clienteId && (
                       <button
                         onClick={limparClienteSelecionado}
-                        className="text-[10px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
                       >
                         Trocar cliente
                       </button>
                     )}
                   </div>
 
-                  <div className="relative mt-2">
+                  <div className="relative">
                     <input
                       value={clienteQuery}
                       onChange={(e) => {
@@ -1294,17 +1388,17 @@ export function AdminAgenda({
                           setClienteNascimento("");
                         }
                       }}
-                      placeholder="Digite o nome (mín. 2 letras)…"
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm"
+                      placeholder="Digite o nome do cliente..."
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                     />
 
                     {(clienteSugLoading || clienteSugErro) && (
                       <div className="mt-1 text-[11px]">
                         {clienteSugLoading && (
-                          <span className="text-slate-400">Buscando…</span>
+                          <span className="text-[var(--text-muted)]">Buscando…</span>
                         )}
                         {clienteSugErro && (
-                          <span className="text-red-300">{clienteSugErro}</span>
+                          <span className="text-red-500">{clienteSugErro}</span>
                         )}
                       </div>
                     )}
@@ -1312,19 +1406,19 @@ export function AdminAgenda({
                     {!clienteId &&
                       clienteSugestoes.length > 0 &&
                       String(clienteQuery || "").trim().length >= 2 && (
-                        <div className="absolute z-20 mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
+                        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-panel)]">
                           {clienteSugestoes.map((c) => (
                             <button
                               key={c.id}
                               onClick={() => selecionarCliente(c)}
-                              className="w-full text-left px-3 py-2 hover:bg-slate-800 transition"
+                              className="w-full border-b border-[var(--border-color)] px-3 py-3 text-left transition last:border-b-0 hover:bg-[var(--bg-panel)]"
                             >
-                              <div className="text-sm text-slate-100 font-medium">
+                              <div className="text-sm font-medium text-[var(--text-app)]">
                                 {c.nome}
                               </div>
-                              <div className="text-[11px] text-slate-400">
-                                {c.whatsapp || ""}{" "}
-                                {c.nascimento ? `• Nasc: ${fmtBRDate(c.nascimento)}` : ""}
+                              <div className="text-[11px] text-[var(--text-muted)]">
+                                {c.whatsapp || ""}
+                                {c.nascimento ? ` • Nasc: ${fmtBRDate(c.nascimento)}` : ""}
                               </div>
                             </button>
                           ))}
@@ -1332,81 +1426,83 @@ export function AdminAgenda({
                       )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
-                    <div className="flex flex-col md:col-span-1">
-                      <span className="text-[11px] text-slate-400 mb-1">Nome</span>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Nome
+                      </span>
                       <input
                         value={clienteNome}
                         onChange={(e) => setClienteNome(e.target.value)}
                         disabled={!!clienteId}
                         placeholder={clienteId ? "Selecionado" : "Nome completo"}
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm disabled:opacity-60"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500 disabled:opacity-60"
                       />
                     </div>
 
-                    <div className="flex flex-col md:col-span-1">
-                      <span className="text-[11px] text-slate-400 mb-1">WhatsApp</span>
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        WhatsApp
+                      </span>
                       <input
                         value={clienteWhatsapp}
                         onChange={(e) => setClienteWhatsapp(e.target.value)}
                         disabled={!!clienteId}
                         placeholder="(xx) xxxxx-xxxx"
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm disabled:opacity-60"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500 disabled:opacity-60"
                       />
                     </div>
 
-                    <div className="flex flex-col md:col-span-1">
-                      <span className="text-[11px] text-slate-400 mb-1">Nascimento</span>
+                    <div className="flex flex-col">
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Nascimento
+                      </span>
                       <input
                         type="date"
                         value={clienteNascimento}
                         onChange={(e) => setClienteNascimento(e.target.value)}
                         disabled={!!clienteId}
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm disabled:opacity-60"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500 disabled:opacity-60"
                       />
-                      <span className="text-[10px] text-slate-500 mt-1">
-                        Armazenar como YYYY-MM-DD (UI pode mostrar DD/MM/AAAA).
-                      </span>
                     </div>
                   </div>
 
                   {clienteId && (
-                    <div className="mt-2 text-[11px] text-emerald-200">
-                      Cliente selecionado (ID):{" "}
-                      <span className="text-emerald-300 font-semibold">{clienteId}</span>
+                    <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-700">
+                      Cliente selecionado com sucesso.
                     </div>
                   )}
                 </div>
 
-                <div className="mt-2 pt-3 border-t border-slate-700/60">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h4 className="text-sm font-semibold text-slate-100">
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-bold text-[var(--text-app)]">
                       Horários disponíveis
                     </h4>
 
                     <button
                       onClick={carregarDisponibilidade}
                       disabled={slotsLoading}
-                      className="text-[10px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition disabled:opacity-60"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:opacity-60"
                     >
                       {slotsLoading ? "Buscando..." : "Recarregar horários"}
                     </button>
                   </div>
 
                   {slotsErro && (
-                    <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mt-2">
+                    <div className="mb-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                       {slotsErro}
                     </div>
                   )}
 
                   {!slotsLoading && !slotsErro && slots.length === 0 && (
-                    <p className="text-xs text-slate-400 mt-2">
+                    <p className="text-xs text-[var(--text-muted)]">
                       Selecione profissional, serviço e data para listar horários.
                     </p>
                   )}
 
                   {slotsLoading ? (
-                    <p className="text-xs text-slate-400 mt-2">Carregando horários…</p>
+                    <p className="text-xs text-[var(--text-muted)]">Carregando horários…</p>
                   ) : slots.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {slots.map((h) => {
@@ -1416,10 +1512,10 @@ export function AdminAgenda({
                             key={h}
                             onClick={() => setNovoHora(h)}
                             className={[
-                              "text-xs px-3 py-2 rounded-lg border transition",
+                              "rounded-xl border px-3 py-2 text-xs font-medium transition",
                               ativo
-                                ? "border-emerald-500 text-emerald-100 bg-emerald-900/20"
-                                : "border-slate-700 text-slate-200 hover:bg-slate-800",
+                                ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                                : "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-app)] hover:bg-[var(--bg-app)]",
                             ].join(" ")}
                           >
                             {h}
@@ -1430,18 +1526,18 @@ export function AdminAgenda({
                   ) : null}
                 </div>
 
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={fecharNovoAgendamento}
                     disabled={novoSaving}
-                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition disabled:opacity-60"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:opacity-60"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={criarAgendamentoNovo}
                     disabled={novoSaving}
-                    className="text-xs px-4 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition disabled:opacity-60"
+                    className="rounded-xl bg-[var(--accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:opacity-95 disabled:opacity-60"
                   >
                     {novoSaving ? "Criando..." : "Criar agendamento"}
                   </button>
@@ -1454,79 +1550,88 @@ export function AdminAgenda({
 
       {editOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={fecharEditar} />
-          <div className="absolute inset-0 flex items-start justify-center p-4 md:p-6 overflow-y-auto">
-            <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-              <div className="p-4 border-b border-slate-700/60 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-slate-50">Editar agendamento</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Você pode reagendar (data/hora) e lançar serviços extras no
-                    financeiro <span className="text-slate-300">sem alterar a agenda</span>.
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Esta tela não troca o serviço principal do agendamento. Ela apenas
-                    move data/hora e registra extras.
-                  </p>
-                </div>
+          <div className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm" onClick={fecharEditar} />
+          <div className="absolute inset-0 flex items-start justify-center overflow-y-auto p-4 md:p-6">
+            <div className="relative w-full max-w-3xl overflow-y-auto rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-panel)]">
+              <div className="border-b border-[var(--border-color)] p-5 md:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600">
+                      Ajustes do atendimento
+                    </div>
+                    <h3 className="text-xl font-bold text-[var(--text-app)]">
+                      Editar agendamento
+                    </h3>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      Reagende data e hora ou lance serviços extras no financeiro sem alterar o serviço principal.
+                    </p>
+                  </div>
 
-                <button
-                  onClick={fecharEditar}
-                  className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-                >
-                  Fechar
-                </button>
+                  <button
+                    onClick={fecharEditar}
+                    className="shrink-0 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
 
-              <div className="p-4 grid gap-3">
+              <div className="grid gap-4 p-5 md:p-6">
                 {editErro && (
-                  <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                     {editErro}
                   </div>
                 )}
                 {editSucesso && (
-                  <div className="bg-emerald-900/30 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
                     {editSucesso}
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Data</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Data
+                    </span>
                     <input
                       type="date"
                       value={editData}
                       onChange={(e) => setEditData(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                     />
                   </div>
+
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Hora</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Hora
+                    </span>
                     <input
                       type="time"
                       value={editHora}
                       onChange={(e) => setEditHora(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                     />
                   </div>
                 </div>
 
-                <div className="mt-2 pt-3 border-t border-slate-700/60">
-                  <h4 className="text-sm font-semibold text-slate-100">
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+                  <h4 className="text-sm font-bold text-[var(--text-app)]">
                     Extras (lançamento no financeiro)
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Use isto quando o profissional fizer um serviço a mais “dentro do mesmo horário”.
+                  <p className="mt-1 text-[11px] text-[var(--text-soft)]">
+                    Use esta área quando o profissional realizar um serviço adicional dentro do mesmo horário.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3 items-end">
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4 md:items-end">
                     <div className="flex flex-col md:col-span-2">
-                      <span className="text-[11px] text-slate-400 mb-1">Serviço</span>
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Serviço
+                      </span>
                       <select
                         value={extraServicoId}
                         onChange={(e) => setExtraServicoId(e.target.value)}
                         disabled={servicosLoading}
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm disabled:opacity-60"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500 disabled:opacity-60"
                       >
                         <option value="">
                           {servicosLoading ? "Carregando..." : "Selecione"}
@@ -1534,26 +1639,28 @@ export function AdminAgenda({
                         {servicos?.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.nome}
-                            {s.preco != null ? ` — R$ ${Number(s.preco).toFixed(2)}` : ""}
+                            {s.preco != null ? ` — ${formatBRL(s.preco)}` : ""}
                           </option>
                         ))}
                       </select>
                     </div>
 
                     <div className="flex flex-col">
-                      <span className="text-[11px] text-slate-400 mb-1">Qtd</span>
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Qtd
+                      </span>
                       <input
                         type="number"
                         min="1"
                         value={extraQtd}
                         onChange={(e) => setExtraQtd(e.target.value)}
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                       />
                     </div>
 
                     <div className="flex flex-col">
-                      <span className="text-[11px] text-slate-400 mb-1">
-                        Preço unit (opcional)
+                      <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                        Preço unit. (opcional)
                       </span>
                       <input
                         type="number"
@@ -1562,50 +1669,50 @@ export function AdminAgenda({
                         value={extraPrecoUnit}
                         onChange={(e) => setExtraPrecoUnit(e.target.value)}
                         placeholder="Auto"
-                        className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                        className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                       />
                     </div>
 
                     <div className="md:col-span-4 flex justify-end">
                       <button
                         onClick={adicionarExtraNaLista}
-                        className="text-xs px-3 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition"
+                        className="rounded-xl border border-emerald-500 bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:opacity-95"
                       >
-                        Adicionar
+                        Adicionar extra
                       </button>
                     </div>
                   </div>
 
                   {extras.length > 0 && (
-                    <div className="mt-3 bg-slate-800/40 border border-slate-700 rounded-xl p-3">
-                      <div className="text-[11px] text-slate-400 mb-2">Itens adicionados</div>
+                    <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+                      <div className="mb-3 text-[11px] font-medium text-[var(--text-muted)]">
+                        Itens adicionados
+                      </div>
 
                       <ul className="space-y-2">
                         {extras.map((it, idx) => (
                           <li
                             key={`${it.servico_id}-${idx}`}
-                            className="flex items-center justify-between gap-2 text-xs"
+                            className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-3 text-xs"
                           >
                             <div className="min-w-0">
-                              <div className="text-slate-100 font-medium truncate">
+                              <div className="truncate font-medium text-[var(--text-app)]">
                                 {it.nome}
                               </div>
-                              <div className="text-[11px] text-slate-400">
-                                Qtd: {it.quantidade} • Unit: R${" "}
-                                {Number(it.preco_venda_unit ?? 0).toFixed(2)}
+                              <div className="text-[11px] text-[var(--text-muted)]">
+                                Qtd: {it.quantidade} • Unit: {formatBRL(it.preco_venda_unit ?? 0)}
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <div className="text-emerald-300 font-semibold">
-                                R${" "}
-                                {Number(
+                              <div className="font-semibold text-emerald-700">
+                                {formatBRL(
                                   Number(it.quantidade) * Number(it.preco_venda_unit ?? 0)
-                                ).toFixed(2)}
+                                )}
                               </div>
                               <button
                                 onClick={() => removerExtra(idx)}
-                                className="text-[10px] px-2 py-1 rounded-lg border border-rose-600 text-rose-200 hover:bg-rose-600/10 transition"
+                                className="rounded-xl border border-rose-500/60 px-2.5 py-1.5 text-[10px] font-medium text-rose-600 transition hover:bg-rose-500/10"
                               >
                                 Remover
                               </button>
@@ -1614,28 +1721,28 @@ export function AdminAgenda({
                         ))}
                       </ul>
 
-                      <div className="mt-3 pt-2 border-t border-slate-700/60 flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Total extras</span>
-                        <span className="text-emerald-300 font-bold">
-                          R$ {Number(extrasTotal).toFixed(2)}
+                      <div className="mt-3 flex items-center justify-between border-t border-[var(--border-color)] pt-3 text-xs">
+                        <span className="text-[var(--text-muted)]">Total extras</span>
+                        <span className="font-bold text-emerald-700">
+                          {formatBRL(extrasTotal)}
                         </span>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={fecharEditar}
                     disabled={editSaving}
-                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition disabled:opacity-60"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:opacity-60"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={salvarEdicao}
                     disabled={editSaving}
-                    className="text-xs px-4 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition disabled:opacity-60"
+                    className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:opacity-95 disabled:opacity-60"
                   >
                     {editSaving ? "Salvando..." : "Salvar alterações"}
                   </button>
@@ -1648,89 +1755,105 @@ export function AdminAgenda({
 
       {pacoteEditOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={fecharEditarPacote} />
-          <div className="absolute inset-0 flex items-start justify-center p-4 md:p-6 overflow-y-auto">
-            <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-              <div className="p-4 border-b border-slate-700/60 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-slate-50">Editar ocorrência do pacote</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Aqui você altera somente esta ocorrência do pacote, sem mudar a regra fixa semanal.
-                  </p>
-                </div>
+          <div
+            className="absolute inset-0 bg-[var(--bg-overlay)] backdrop-blur-sm"
+            onClick={fecharEditarPacote}
+          />
+          <div className="absolute inset-0 flex items-start justify-center overflow-y-auto p-4 md:p-6">
+            <div className="relative w-full max-w-2xl overflow-y-auto rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-panel)]">
+              <div className="border-b border-[var(--border-color)] p-5 md:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-600">
+                      Ocorrência avulsa
+                    </div>
+                    <h3 className="text-xl font-bold text-[var(--text-app)]">
+                      Editar ocorrência do pacote
+                    </h3>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      Altere apenas esta ocorrência, sem mexer na regra fixa semanal do pacote.
+                    </p>
+                  </div>
 
-                <button
-                  onClick={fecharEditarPacote}
-                  className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-                >
-                  Fechar
-                </button>
+                  <button
+                    onClick={fecharEditarPacote}
+                    className="shrink-0 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
 
-              <div className="p-4 grid gap-3">
+              <div className="grid gap-4 p-5 md:p-6">
                 {pacoteEditErro && (
-                  <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-600">
                     {pacoteEditErro}
                   </div>
                 )}
 
                 {pacoteEditSucesso && (
-                  <div className="bg-emerald-900/30 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
                     {pacoteEditSucesso}
                   </div>
                 )}
 
-                <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-3 text-xs">
-                  <div className="text-slate-200 font-medium">
+                <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 text-xs">
+                  <div className="font-medium text-[var(--text-app)]">
                     Cliente: {pacoteEditAg?.cliente?.nome || "—"}
                   </div>
-                  <div className="text-slate-400 mt-1">
+                  <div className="mt-1 text-[var(--text-muted)]">
                     Profissional: {pacoteEditAg?.profissional?.nome || "—"}
                   </div>
-                  <div className="text-slate-400 mt-1">
+                  <div className="mt-1 text-[var(--text-muted)]">
                     Regra original: {fmtBRDate(pacoteEditAg?.data_original || pacoteEditAg?.data)} às{" "}
                     {pacoteEditAg?.hora_inicio?.slice(0, 5)}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Nova data</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Nova data
+                    </span>
                     <input
                       type="date"
                       value={pacoteEditData}
                       onChange={(e) => setPacoteEditData(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
                     />
                   </div>
 
                   <div className="flex flex-col">
-                    <span className="text-[11px] text-slate-400 mb-1">Nova hora</span>
+                    <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Nova hora
+                    </span>
                     <input
                       type="time"
                       value={pacoteEditHora}
                       onChange={(e) => setPacoteEditHora(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 mb-1">Observações (opcional)</span>
+                  <span className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Observações (opcional)
+                  </span>
                   <textarea
                     rows={3}
                     value={pacoteEditObservacoes}
                     onChange={(e) => setPacoteEditObservacoes(e.target.value)}
                     placeholder="Ex.: cliente pediu excepcionalmente outro horário nesta semana"
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm resize-none"
+                    className="resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
                   />
                 </div>
 
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={fecharEditarPacote}
                     disabled={pacoteEditSaving}
-                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition disabled:opacity-60"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:opacity-60"
                   >
                     Cancelar
                   </button>
@@ -1738,7 +1861,7 @@ export function AdminAgenda({
                   <button
                     onClick={salvarEdicaoPacote}
                     disabled={pacoteEditSaving}
-                    className="text-xs px-4 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-600/10 transition disabled:opacity-60"
+                    className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:opacity-95 disabled:opacity-60"
                   >
                     {pacoteEditSaving ? "Salvando..." : "Salvar ocorrência"}
                   </button>

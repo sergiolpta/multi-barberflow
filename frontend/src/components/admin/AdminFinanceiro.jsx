@@ -37,18 +37,18 @@ function lastDayOfMonth(date) {
 
 function Badge({ tone = "slate", children }) {
   const map = {
-    slate: "bg-slate-800/70 border-slate-700 text-slate-200",
-    sky: "bg-sky-500/10 border-sky-500/40 text-sky-200",
-    emerald: "bg-emerald-500/10 border-emerald-500/40 text-emerald-200",
-    amber: "bg-amber-500/10 border-amber-500/40 text-amber-200",
-    rose: "bg-rose-500/10 border-rose-500/40 text-rose-200",
-    red: "bg-red-500/10 border-red-500/40 text-red-200",
+    slate:
+      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
+    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
+    red: "border-red-500/30 bg-red-500/10 text-red-600",
   };
+
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] border ${
-        map[tone] || map.slate
-      }`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
     >
       {children}
     </span>
@@ -65,12 +65,12 @@ function Tabs({ value, onChange, items }) {
             key={it.value}
             type="button"
             onClick={() => onChange(it.value)}
-            className={
-              "text-[11px] px-3 py-1 rounded-lg border transition " +
-              (active
-                ? "border-sky-500/60 bg-sky-500/10 text-sky-200"
-                : "border-slate-700 text-slate-300 hover:bg-slate-800/40")
-            }
+            className={[
+              "rounded-xl border px-3 py-2 text-[11px] font-medium transition",
+              active
+                ? "border-[var(--accent-primary)] bg-[var(--accent-primary-soft)] text-[var(--accent-primary)] shadow-sm"
+                : "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)] hover:bg-[var(--bg-panel)]",
+            ].join(" ")}
           >
             {it.label}
           </button>
@@ -82,19 +82,32 @@ function Tabs({ value, onChange, items }) {
 
 function KpiCard({ title, value, hint, tone = "slate" }) {
   const toneMap = {
-    slate: "border-slate-700/50",
-    sky: "border-sky-500/30",
-    emerald: "border-emerald-500/30",
-    amber: "border-amber-500/30",
-    rose: "border-rose-500/30",
-    red: "border-red-500/30",
+    slate: "border-[var(--border-color)] bg-[var(--bg-panel-strong)]",
+    sky: "border-sky-500/20 bg-sky-500/10",
+    emerald: "border-emerald-500/20 bg-emerald-500/10",
+    amber: "border-amber-500/20 bg-amber-500/10",
+    rose: "border-rose-500/20 bg-rose-500/10",
+    red: "border-red-500/20 bg-red-500/10",
+  };
+
+  const valueTone = {
+    slate: "text-[var(--text-app)]",
+    sky: "text-sky-700",
+    emerald: "text-emerald-700",
+    amber: "text-amber-700",
+    rose: "text-rose-700",
+    red: "text-red-700",
   };
 
   return (
-    <div className={`bg-slate-900/30 border ${toneMap[tone] || toneMap.slate} rounded-xl p-3`}>
-      <div className="text-[11px] text-slate-400">{title}</div>
-      <div className="text-sm font-semibold mt-1">{value}</div>
-      {hint ? <div className="text-[11px] text-slate-500 mt-1">{hint}</div> : null}
+    <div
+      className={`rounded-2xl border p-4 shadow-[var(--shadow-soft)] ${toneMap[tone] || toneMap.slate}`}
+    >
+      <div className="text-[11px] font-medium text-[var(--text-muted)]">{title}</div>
+      <div className={`mt-2 text-lg font-bold ${valueTone[tone] || valueTone.slate}`}>
+        {value}
+      </div>
+      {hint ? <div className="mt-1 text-[11px] text-[var(--text-soft)]">{hint}</div> : null}
     </div>
   );
 }
@@ -303,6 +316,21 @@ function lsSafeSet(key, value) {
   } catch {
     // ignore
   }
+}
+
+function SectionCard({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function AdminFinanceiro({
@@ -791,73 +819,66 @@ export function AdminFinanceiro({
   }, [fechamentoExiste, isConfirmado]);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
-      <div className="w-full max-w-6xl mx-auto">
-        <header className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-center gap-4">
-            {barbeariaLogoUrl ? (
-              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="max-h-full max-w-full object-contain"
-                />
+    <div className="min-h-screen bg-[var(--bg-app)] px-4 py-8 text-[var(--text-app)] md:py-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 overflow-hidden rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              {barbeariaLogoUrl ? (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-500/10 text-3xl">
+                  💰
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  Financeiro administrativo
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
+                  {barbeariaNome || "Financeiro"}{" "}
+                  <span className="text-[var(--text-muted)]">(Owner)</span>
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Analise resultado do período, prévias operacionais, snapshot oficial, adiantamentos e despesas da barbearia.
+                </p>
               </div>
-            ) : null}
-
-            <div>
-              <h1 className="text-2xl font-bold text-slate-50">
-                {barbeariaNome || "Financeiro"} <span className="text-slate-400">(Owner)</span>
-              </h1>
-              <p className="text-sm text-slate-400 mt-1">
-                Prévia = retrato do período. Fechamento = oficial (snapshot e conclusão).
-              </p>
             </div>
-          </div>
 
-          <button
-            onClick={onVoltar}
-            className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 transition self-start"
-          >
-            Voltar ao painel
-          </button>
+            <button
+              onClick={onVoltar}
+              className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+            >
+              Voltar ao painel
+            </button>
+          </div>
         </header>
 
         {erro ? (
-          <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-4">
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
             {erro}
           </div>
         ) : null}
 
-        <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2 lg:w-[520px]">
-              <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">Data inicial</label>
-                <input
-                  type="date"
-                  value={dataInicial}
-                  onChange={(e) => setDataInicial(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">Data final</label>
-                <input
-                  type="date"
-                  value={dataFinal}
-                  onChange={(e) => setDataFinal(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
+        <SectionCard
+          title="Configuração do período"
+          subtitle="Defina o intervalo de análise e escolha se deseja gerar prévia ou criar fechamento oficial."
+          actions={
+            <>
               <button
                 onClick={handleGerarPrevia}
                 disabled={loading || !dataInicial || !dataFinal}
-                className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-panel)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Carregando..." : "Gerar prévia"}
               </button>
@@ -865,27 +886,43 @@ export function AdminFinanceiro({
               <button
                 onClick={handleCriarFechamento}
                 disabled={loading || !dataInicial || !dataFinal}
-                className="text-xs px-3 py-2 rounded-lg border border-sky-600 text-sky-200 hover:bg-sky-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="rounded-xl bg-[var(--accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Criar fechamento (oficial)
+                Criar fechamento oficial
               </button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-start justify-between gap-3 flex-wrap">
-            <div className="text-[11px] text-slate-500 leading-relaxed">
-              <div className="mb-1">
-                <Badge tone={nextAction.tone}>Próxima ação</Badge>
-                {recoveredFromLS ? (
-                  <span className="ml-2">
-                    <Badge tone="amber">Recarregado do último fechamento</Badge>
-                  </span>
-                ) : null}
+            </>
+          }
+        >
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+            <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                  Data inicial
+                </label>
+                <input
+                  type="date"
+                  value={dataInicial}
+                  onChange={(e) => setDataInicial(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)]"
+                />
               </div>
-              {nextAction.text}
+
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                  Data final
+                </label>
+                <input
+                  type="date"
+                  value={dataFinal}
+                  onChange={(e) => setDataFinal(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)]"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-start gap-2">
+              <Badge tone={nextAction.tone}>Próxima ação</Badge>
+              {recoveredFromLS ? <Badge tone="amber">Último fechamento recuperado</Badge> : null}
               <Badge tone={fechamentoExiste ? "emerald" : "slate"}>
                 {fechamentoExiste ? "Fechamento detectado" : "Sem fechamento"}
               </Badge>
@@ -895,13 +932,17 @@ export function AdminFinanceiro({
               {isConfirmado ? <Badge tone="slate">Modo leitura</Badge> : null}
             </div>
           </div>
-        </section>
 
-        <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-3 text-sm text-[var(--text-muted)]">
+            {nextAction.text}
+          </div>
+        </SectionCard>
+
+        <div className="my-4 rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-sm font-semibold text-slate-100">Visão do período</div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-sm font-semibold text-[var(--text-app)]">Visão do período</div>
+              <div className="mt-1 text-[11px] text-[var(--text-muted)]">
                 {periodoInicio || "—"} → {periodoFim || "—"}
               </div>
             </div>
@@ -922,35 +963,30 @@ export function AdminFinanceiro({
               ]}
             />
           </div>
-        </section>
+        </div>
 
         {tab === "resumo" ? (
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-slate-100">Resumo executivo</div>
-                <div className="text-[11px] text-slate-500">
-                  DRE simplificada: (Serviços + Pacotes + <b>Lucro PDV</b>) − Comissões − Despesas
-                </div>
-              </div>
-              <div className="text-[11px] text-slate-400">Dica: gere prévia sempre que mudar o período.</div>
-            </div>
-
-            <div className="mt-3 bg-slate-900/30 border border-slate-700/50 rounded-xl p-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+          <SectionCard
+            title="Resumo executivo"
+            subtitle="DRE simplificada: serviços + pacotes + lucro PDV − comissões − despesas."
+          >
+            <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-slate-100">Prévia por profissional</div>
-                  <div className="text-[11px] text-slate-500">
-                    Selecione um profissional para ver KPIs dele (a prévia continua sendo “não oficial”).
+                  <div className="text-sm font-semibold text-[var(--text-app)]">
+                    Prévia por profissional
+                  </div>
+                  <div className="mt-1 text-[11px] text-[var(--text-muted)]">
+                    Selecione um profissional para ver KPIs individuais. A prévia continua sendo não oficial.
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={previaProfId}
                     onChange={(e) => setPreviaProfId(e.target.value)}
                     disabled={!previa}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm min-w-[240px] disabled:opacity-60"
+                    className="min-w-[240px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)] disabled:opacity-60"
                     title={!previa ? "Gere a prévia para habilitar" : ""}
                   >
                     <option value="">Todos os profissionais</option>
@@ -1015,22 +1051,21 @@ export function AdminFinanceiro({
                         tabelaRows: rows,
                       });
                     }}
-                    className="text-xs px-3 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                    title={!previa ? "Gere a prévia para habilitar" : "Exporta PDF da prévia atual"}
+                    className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Exportar PDF (prévia)
+                    Exportar PDF
                   </button>
                 </div>
               </div>
 
               {!previa ? (
-                <div className="text-[11px] text-slate-500 mt-2">
-                  Para habilitar: clique em <b>Gerar prévia</b>.
+                <div className="mt-4 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                  Nenhuma prévia carregada. Clique em <b>Gerar prévia</b>.
                 </div>
               ) : null}
 
               {previa && previaEscopo ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
                   <KpiCard
                     title="Serviços (total)"
                     value={fmtBRL(previaEscopo.servTotal)}
@@ -1071,14 +1106,13 @@ export function AdminFinanceiro({
               ) : null}
 
               {previa && !previaEscopo ? (
-                <div className="text-[11px] text-slate-500 mt-2">
-                  Não foi possível montar a prévia por profissional (verifique se a prévia retornou{" "}
-                  <code>comissoes.por_profissional</code>).
+                <div className="mt-4 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                  Não foi possível montar a prévia por profissional.
                 </div>
               ) : null}
 
               {previaResumo ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <KpiCard
                     title="Receitas operacionais"
                     value={fmtBRL(previaResumo.receitasOperacionais)}
@@ -1104,27 +1138,18 @@ export function AdminFinanceiro({
                     tone={resultadoDRE >= 0 ? "emerald" : "rose"}
                   />
                 </div>
-              ) : (
-                <div className="text-sm text-slate-400 mt-2">
-                  Nenhuma prévia carregada. Clique em <b>Gerar prévia</b>.
-                </div>
-              )}
+              ) : null}
             </div>
-          </section>
+          </SectionCard>
         ) : null}
 
         {tab === "snapshot" ? (
-          <>
-            <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-sm font-semibold text-slate-100">Fechamento oficial</div>
-                  <div className="text-[11px] text-slate-500">
-                    Snapshot congela comissões por profissional. Concluir trava o período. PDF documenta o snapshot.
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
+          <div className="space-y-4">
+            <SectionCard
+              title="Fechamento oficial"
+              subtitle="Snapshot congela comissões por profissional. Concluir trava o período."
+              actions={
+                <>
                   <button
                     onClick={async () => {
                       if (!fechamentoId) return;
@@ -1134,8 +1159,7 @@ export function AdminFinanceiro({
                       await carregarProfissionais(fechamentoId);
                     }}
                     disabled={loading || !fechamentoId || isConfirmado}
-                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                    title={isConfirmado ? "Confirmado: modo leitura" : ""}
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-panel)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Gerar snapshot
                   </button>
@@ -1149,7 +1173,7 @@ export function AdminFinanceiro({
                       await carregarProfissionais(fechamentoId);
                     }}
                     disabled={loading || !fechamentoId || isConfirmado}
-                    className="text-xs px-3 py-2 rounded-lg border border-sky-600 text-sky-200 hover:bg-sky-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                    className="rounded-xl bg-[var(--accent-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Concluir fechamento
                   </button>
@@ -1167,109 +1191,97 @@ export function AdminFinanceiro({
                       })
                     }
                     disabled={!profissionais?.length}
-                    className="text-xs px-3 py-2 rounded-lg border border-emerald-600 text-emerald-200 hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                    title={!profissionais?.length ? "Carregue um snapshot primeiro" : ""}
+                    className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Exportar PDF
                   </button>
-                </div>
-              </div>
-
-              <details className="mt-3">
-                <summary className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-200">
+                </>
+              }
+            >
+              <details>
+                <summary className="cursor-pointer text-[11px] text-[var(--text-muted)] hover:text-[var(--text-app)]">
                   Ferramentas avançadas (carregar fechamento por ID)
                 </summary>
 
-                <div className="mt-2 grid gap-3 sm:grid-cols-[1fr_auto] items-end">
+                <div className="mt-3 grid items-end gap-3 sm:grid-cols-[1fr_auto]">
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Fechamento ID (manual)</label>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Fechamento ID (manual)
+                    </label>
                     <input
                       value={fechamentoIdManual}
                       onChange={(e) => setFechamentoIdManual(e.target.value)}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)]"
                     />
                   </div>
                   <button
                     onClick={handleCarregarSnapshot}
                     disabled={loading || !fechamentoIdManual}
-                    className="text-xs px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-panel)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Carregar snapshot
                   </button>
                 </div>
               </details>
-            </section>
+            </SectionCard>
 
-            <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-                <div>
-                  <div className="text-sm font-semibold text-slate-100">Snapshot por profissional</div>
-                  <div className="text-[11px] text-slate-500">
-                    Ao entrar nessa aba, o sistema tenta recuperar o último fechamento (refresh) e carregar o snapshot.
-                  </div>
-                </div>
-
-                {profissionais?.length ? <Badge tone="emerald">{profissionais.length} profissionais</Badge> : null}
-              </div>
-
+            <SectionCard
+              title="Snapshot por profissional"
+              subtitle="Ao entrar nessa aba, o sistema tenta recuperar o último fechamento e carregar o snapshot."
+              actions={profissionais?.length ? <Badge tone="emerald">{profissionais.length} profissionais</Badge> : null}
+            >
               {profissionais?.length ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] border-collapse">
+                <div className="overflow-x-auto rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)]">
+                  <table className="w-full border-collapse text-[12px]">
                     <thead>
-                      <tr className="text-slate-400 border-b border-slate-700/60">
-                        <th className="text-left py-2 pr-2 font-medium">Profissional</th>
-                        <th className="text-right py-2 px-2 font-medium">Serviços (total)</th>
-                        <th className="text-right py-2 px-2 font-medium">Serviços (comissão)</th>
-                        <th className="text-right py-2 px-2 font-medium">Pacotes (comissão)</th>
-                        <th className="text-right py-2 px-2 font-medium">PDV (comissão)</th>
-                        <th className="text-right py-2 px-2 font-medium">Bruta</th>
-                        <th className="text-right py-2 px-2 font-medium">Adiant.</th>
-                        <th className="text-right py-2 pl-2 font-medium">Líquida</th>
+                      <tr className="border-b border-[var(--border-color)] text-[var(--text-muted)]">
+                        <th className="px-4 py-3 text-left font-medium">Profissional</th>
+                        <th className="px-3 py-3 text-right font-medium">Serviços (total)</th>
+                        <th className="px-3 py-3 text-right font-medium">Serviços (comissão)</th>
+                        <th className="px-3 py-3 text-right font-medium">Pacotes (comissão)</th>
+                        <th className="px-3 py-3 text-right font-medium">PDV (comissão)</th>
+                        <th className="px-3 py-3 text-right font-medium">Bruta</th>
+                        <th className="px-3 py-3 text-right font-medium">Adiant.</th>
+                        <th className="px-4 py-3 text-right font-medium">Líquida</th>
                       </tr>
                     </thead>
                     <tbody>
                       {profissionais.map((p) => (
-                        <tr key={p.profissional_id || p.id} className="border-b border-slate-800/60">
-                          <td className="py-2 pr-2 text-slate-100">{p.profissional_nome || p.nome || "—"}</td>
-                          <td className="py-2 px-2 text-right">{fmtBRL(p.total_servicos)}</td>
-                          <td className="py-2 px-2 text-right">{fmtBRL(p.comissao_servicos)}</td>
-                          <td className="py-2 px-2 text-right">{fmtBRL(p.comissao_pacotes)}</td>
-                          <td className="py-2 px-2 text-right">{fmtBRL(p.comissao_pdv)}</td>
-                          <td className="py-2 px-2 text-right font-semibold">{fmtBRL(p.comissao_bruta)}</td>
-                          <td className="py-2 px-2 text-right">{fmtBRL(p.adiantamentos_total)}</td>
-                          <td className="py-2 pl-2 text-right font-semibold text-emerald-300">
+                        <tr key={p.profissional_id || p.id} className="border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-panel)]">
+                          <td className="px-4 py-3 text-[var(--text-app)]">
+                            {p.profissional_nome || p.nome || "—"}
+                          </td>
+                          <td className="px-3 py-3 text-right">{fmtBRL(p.total_servicos)}</td>
+                          <td className="px-3 py-3 text-right">{fmtBRL(p.comissao_servicos)}</td>
+                          <td className="px-3 py-3 text-right">{fmtBRL(p.comissao_pacotes)}</td>
+                          <td className="px-3 py-3 text-right">{fmtBRL(p.comissao_pdv)}</td>
+                          <td className="px-3 py-3 text-right font-semibold">{fmtBRL(p.comissao_bruta)}</td>
+                          <td className="px-3 py-3 text-right">{fmtBRL(p.adiantamentos_total)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-700">
                             {fmtBRL(p.comissao_liquida)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-
-                  <div className="text-[11px] text-slate-500 mt-3">
-                    Regra: serviços entram no fechamento quando <code>agendamentos.status</code> ={" "}
-                    <code>"confirmado"</code>.
-                  </div>
                 </div>
               ) : (
-                <div className="text-sm text-slate-400">
+                <div className="rounded-2xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
                   {fechamentoId
-                    ? "Snapshot vazio. Gere snapshot (se não confirmado) ou recarregue."
+                    ? "Snapshot vazio. Gere snapshot ou recarregue o fechamento."
                     : "Nenhum fechamento selecionado para este período."}
                 </div>
               )}
-            </section>
-          </>
+            </SectionCard>
+          </div>
         ) : null}
 
         {tab === "adiantamentos" ? (
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-slate-100">Adiantamentos (caixa)</div>
-                <div className="text-[11px] text-slate-500">Afeta caixa, não DRE.</div>
-              </div>
-
-              <div className="text-xs text-slate-300 flex items-center gap-2 flex-wrap">
+          <SectionCard
+            title="Adiantamentos (caixa)"
+            subtitle="Adiantamentos afetam caixa, não entram diretamente na DRE."
+            actions={
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge tone="slate">
                   Pendentes: {adiantamentosPendentes.length} ({fmtBRL(totalAdiantamentosPendentesPeriodo)})
                 </Badge>
@@ -1278,74 +1290,86 @@ export function AdminFinanceiro({
                 </Badge>
                 <Badge tone="slate">Total: {fmtBRL(totalAdiantamentosPeriodo)}</Badge>
               </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_1.9fr]">
+            }
+          >
+            <div className="grid gap-4 lg:grid-cols-[1.05fr_1.95fr]">
               <form
                 onSubmit={handleCriarAdiantamento}
-                className="bg-slate-900/30 border border-slate-700/50 rounded-xl p-3 space-y-3"
+                className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4"
               >
-                <div className="text-xs font-semibold text-slate-100">Registrar adiantamento</div>
+                <div className="mb-4 text-sm font-bold text-[var(--text-app)]">
+                  Registrar adiantamento
+                </div>
 
-                <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Profissional</label>
-                  <select
-                    value={adProfissionalId}
-                    onChange={(e) => setAdProfissionalId(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Profissional
+                    </label>
+                    <select
+                      value={adProfissionalId}
+                      onChange={(e) => setAdProfissionalId(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
+                    >
+                      <option value="">Selecione…</option>
+                      {optionsProfissionais.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                        Data
+                      </label>
+                      <input
+                        type="date"
+                        value={adData}
+                        onChange={(e) => setAdData(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                        Valor
+                      </label>
+                      <input
+                        inputMode="decimal"
+                        value={adValor}
+                        onChange={(e) => setAdValor(e.target.value)}
+                        placeholder="Ex.: 50.00"
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Descrição (opcional)
+                    </label>
+                    <input
+                      value={adDescricao}
+                      onChange={(e) => setAdDescricao(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-amber-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || !adProfissionalId || !adData || !adValor || !(periodoInicio && periodoFim)}
+                    className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <option value="">Selecione…</option>
-                    {optionsProfissionais.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome}
-                      </option>
-                    ))}
-                  </select>
+                    {loading ? "Salvando..." : "Salvar adiantamento"}
+                  </button>
                 </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Data</label>
-                    <input
-                      type="date"
-                      value={adData}
-                      onChange={(e) => setAdData(e.target.value)}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Valor</label>
-                    <input
-                      inputMode="decimal"
-                      value={adValor}
-                      onChange={(e) => setAdValor(e.target.value)}
-                      placeholder="Ex.: 50.00"
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Descrição (opcional)</label>
-                  <input
-                    value={adDescricao}
-                    onChange={(e) => setAdDescricao(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !adProfissionalId || !adData || !adValor || !(periodoInicio && periodoFim)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-amber-500 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {loading ? "Salvando..." : "Salvar adiantamento"}
-                </button>
               </form>
 
-              <div className="bg-slate-900/30 border border-slate-700/50 rounded-xl p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-slate-100">Lançamentos</div>
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-sm font-bold text-[var(--text-app)]">Lançamentos</div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1353,22 +1377,22 @@ export function AdminFinanceiro({
                         carregarAdiantamentos({ dataInicio: periodoInicio, dataFim: periodoFim });
                     }}
                     disabled={loading || !(periodoInicio && periodoFim)}
-                    className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Atualizar
                   </button>
                 </div>
 
                 {adiantamentos?.length ? (
-                  <div className="max-h-[360px] overflow-y-auto pr-1">
-                    <table className="w-full text-[11px] border-collapse">
-                      <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-                        <tr className="text-slate-400 border-b border-slate-700/60">
-                          <th className="text-left py-2 pr-2 font-medium">Data</th>
-                          <th className="text-left py-2 px-2 font-medium">Profissional</th>
-                          <th className="text-right py-2 px-2 font-medium">Valor</th>
-                          <th className="text-left py-2 px-2 font-medium">Status</th>
-                          <th className="text-right py-2 pl-2 font-medium">Ações</th>
+                  <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-[var(--border-color)]">
+                    <table className="w-full border-collapse text-[12px]">
+                      <thead className="sticky top-0 bg-[var(--bg-panel-strong)]">
+                        <tr className="border-b border-[var(--border-color)] text-[var(--text-muted)]">
+                          <th className="px-4 py-3 text-left font-medium">Data</th>
+                          <th className="px-3 py-3 text-left font-medium">Profissional</th>
+                          <th className="px-3 py-3 text-right font-medium">Valor</th>
+                          <th className="px-3 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-right font-medium">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1376,16 +1400,16 @@ export function AdminFinanceiro({
                           const nome = nomeProfPorId.get(a.profissional_id) || "—";
                           const abatido = !!a.fechamento_id;
                           return (
-                            <tr key={a.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                              <td className="py-2 pr-2">{String(a.data || "").slice(0, 10)}</td>
-                              <td className="py-2 px-2">{nome}</td>
-                              <td className="py-2 px-2 text-right">{fmtBRL(a.valor)}</td>
-                              <td className="py-2 px-2">
+                            <tr key={a.id} className="border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-panel)]">
+                              <td className="px-4 py-3">{String(a.data || "").slice(0, 10)}</td>
+                              <td className="px-3 py-3">{nome}</td>
+                              <td className="px-3 py-3 text-right">{fmtBRL(a.valor)}</td>
+                              <td className="px-3 py-3">
                                 <Badge tone={abatido ? "emerald" : "amber"}>
                                   {abatido ? "Abatido" : "Pendente"}
                                 </Badge>
                               </td>
-                              <td className="py-2 pl-2 text-right">
+                              <td className="px-4 py-3 text-right">
                                 <button
                                   type="button"
                                   disabled={loading || abatido}
@@ -1396,12 +1420,12 @@ export function AdminFinanceiro({
                                       await carregarAdiantamentos({ dataInicio: periodoInicio, dataFim: periodoFim });
                                     }
                                   }}
-                                  className={
-                                    "text-[11px] px-2 py-1 rounded-lg border transition " +
-                                    (abatido
-                                      ? "border-slate-700 text-slate-500 cursor-not-allowed"
-                                      : "border-red-600 text-red-200 hover:bg-red-500/10")
-                                  }
+                                  className={[
+                                    "rounded-xl border px-3 py-1.5 text-[11px] font-medium transition",
+                                    abatido
+                                      ? "cursor-not-allowed border-[var(--border-color)] text-[var(--text-soft)]"
+                                      : "border-red-500/60 text-red-600 hover:bg-red-500/10",
+                                  ].join(" ")}
                                 >
                                   Excluir
                                 </button>
@@ -1413,7 +1437,7 @@ export function AdminFinanceiro({
                     </table>
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-400">
+                  <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
                     {periodoInicio && periodoFim
                       ? "Nenhum adiantamento no período."
                       : "Defina um período para listar os adiantamentos."}
@@ -1421,92 +1445,99 @@ export function AdminFinanceiro({
                 )}
               </div>
             </div>
-          </section>
+          </SectionCard>
         ) : null}
 
         {tab === "despesas" ? (
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 mb-4">
-            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-slate-100">Despesas (operacional)</div>
-                <div className="text-[11px] text-slate-500">Entram na DRE do período.</div>
-              </div>
-
-              <div className="text-xs text-slate-300">
-                Total no período: <span className="font-semibold text-rose-200">{fmtBRL(totalDespesasPeriodo)}</span>
-              </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_1.9fr]">
+          <SectionCard
+            title="Despesas operacionais"
+            subtitle="Despesas entram na DRE do período e reduzem o resultado final."
+            actions={<Badge tone="rose">Total: {fmtBRL(totalDespesasPeriodo)}</Badge>}
+          >
+            <div className="grid gap-4 lg:grid-cols-[1.05fr_1.95fr]">
               <form
                 onSubmit={handleCriarDespesa}
-                className="bg-slate-900/30 border border-slate-700/50 rounded-xl p-3 space-y-3"
+                className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4"
               >
-                <div className="text-xs font-semibold text-slate-100">Registrar despesa</div>
+                <div className="mb-4 text-sm font-bold text-[var(--text-app)]">
+                  Registrar despesa
+                </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                        Data
+                      </label>
+                      <input
+                        type="date"
+                        value={dpData}
+                        onChange={(e) => setDpData(e.target.value)}
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                        Valor
+                      </label>
+                      <input
+                        inputMode="decimal"
+                        value={dpValor}
+                        onChange={(e) => setDpValor(e.target.value)}
+                        placeholder="Ex.: 120.00"
+                        className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Data</label>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Categoria
+                    </label>
                     <input
-                      type="date"
-                      value={dpData}
-                      onChange={(e) => setDpData(e.target.value)}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      value={dpCategoria}
+                      onChange={(e) => setDpCategoria(e.target.value)}
+                      placeholder='Ex.: "Aluguel", "Energia", "Produtos"...'
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                     />
                   </div>
+
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Valor</label>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Forma de pagamento (opcional)
+                    </label>
                     <input
-                      inputMode="decimal"
-                      value={dpValor}
-                      onChange={(e) => setDpValor(e.target.value)}
-                      placeholder="Ex.: 120.00"
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
+                      value={dpForma}
+                      onChange={(e) => setDpForma(e.target.value)}
+                      placeholder='Ex.: "Pix", "Cartão"...'
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Categoria</label>
-                  <input
-                    value={dpCategoria}
-                    onChange={(e) => setDpCategoria(e.target.value)}
-                    placeholder='Ex.: "Aluguel", "Energia", "Produtos"...'
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                  />
-                </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-medium text-[var(--text-muted)]">
+                      Descrição (opcional)
+                    </label>
+                    <input
+                      value={dpDescricao}
+                      onChange={(e) => setDpDescricao(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-rose-500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Forma de pagamento (opcional)</label>
-                  <input
-                    value={dpForma}
-                    onChange={(e) => setDpForma(e.target.value)}
-                    placeholder='Ex.: "Pix", "Cartão"...'
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                  />
+                  <button
+                    type="submit"
+                    disabled={loading || !dpData || !dpCategoria || !dpValor || !(periodoInicio && periodoFim)}
+                    className="w-full rounded-xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? "Salvando..." : "Salvar despesa"}
+                  </button>
                 </div>
-
-                <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Descrição (opcional)</label>
-                  <input
-                    value={dpDescricao}
-                    onChange={(e) => setDpDescricao(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100 text-sm"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !dpData || !dpCategoria || !dpValor || !(periodoInicio && periodoFim)}
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-rose-500 text-rose-200 hover:bg-rose-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {loading ? "Salvando..." : "Salvar despesa"}
-                </button>
               </form>
 
-              <div className="bg-slate-900/30 border border-slate-700/50 rounded-xl p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-slate-100">Lançamentos</div>
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-sm font-bold text-[var(--text-app)]">Lançamentos</div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1514,39 +1545,43 @@ export function AdminFinanceiro({
                         carregarDespesas({ dataInicio: periodoInicio, dataFim: periodoFim });
                     }}
                     disabled={loading || !(periodoInicio && periodoFim)}
-                    className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Atualizar
                   </button>
                 </div>
 
                 {despesas?.length ? (
-                  <div className="max-h-[360px] overflow-y-auto pr-1">
-                    <table className="w-full text-[11px] border-collapse">
-                      <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-                        <tr className="text-slate-400 border-b border-slate-700/60">
-                          <th className="text-left py-2 pr-2 font-medium">Data</th>
-                          <th className="text-left py-2 px-2 font-medium">Categoria</th>
-                          <th className="text-left py-2 px-2 font-medium">Descrição</th>
-                          <th className="text-right py-2 px-2 font-medium">Valor</th>
-                          <th className="text-right py-2 pl-2 font-medium">Ações</th>
+                  <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-[var(--border-color)]">
+                    <table className="w-full border-collapse text-[12px]">
+                      <thead className="sticky top-0 bg-[var(--bg-panel-strong)]">
+                        <tr className="border-b border-[var(--border-color)] text-[var(--text-muted)]">
+                          <th className="px-4 py-3 text-left font-medium">Data</th>
+                          <th className="px-3 py-3 text-left font-medium">Categoria</th>
+                          <th className="px-3 py-3 text-left font-medium">Descrição</th>
+                          <th className="px-3 py-3 text-right font-medium">Valor</th>
+                          <th className="px-4 py-3 text-right font-medium">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
                         {despesas.map((d) => (
-                          <tr key={d.id} className="border-b border-slate-800/60 hover:bg-slate-800/30">
-                            <td className="py-2 pr-2">{String(d.data || "").slice(0, 10)}</td>
-                            <td className="py-2 px-2">{d.categoria || "—"}</td>
-                            <td className="py-2 px-2 text-slate-300">
-                              <div className="truncate max-w-[360px]" title={d.descricao || ""}>
+                          <tr key={d.id} className="border-b border-[var(--border-color)] last:border-b-0 hover:bg-[var(--bg-panel)]">
+                            <td className="px-4 py-3">{String(d.data || "").slice(0, 10)}</td>
+                            <td className="px-3 py-3">{d.categoria || "—"}</td>
+                            <td className="px-3 py-3 text-[var(--text-muted)]">
+                              <div className="max-w-[360px] truncate" title={d.descricao || ""}>
                                 {d.descricao || "—"}
                               </div>
                               {d.forma_pagamento ? (
-                                <div className="text-[10px] text-slate-500">({d.forma_pagamento})</div>
+                                <div className="mt-0.5 text-[10px] text-[var(--text-soft)]">
+                                  ({d.forma_pagamento})
+                                </div>
                               ) : null}
                             </td>
-                            <td className="py-2 px-2 text-right text-rose-200">{fmtBRL(d.valor)}</td>
-                            <td className="py-2 pl-2 text-right">
+                            <td className="px-3 py-3 text-right font-medium text-rose-700">
+                              {fmtBRL(d.valor)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
                               <button
                                 type="button"
                                 disabled={loading}
@@ -1557,7 +1592,7 @@ export function AdminFinanceiro({
                                     await carregarDespesas({ dataInicio: periodoInicio, dataFim: periodoFim });
                                   }
                                 }}
-                                className="text-[11px] px-2 py-1 rounded-lg border border-red-600 text-red-200 hover:bg-red-500/10 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="rounded-xl border border-red-500/60 px-3 py-1.5 text-[11px] font-medium text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 Excluir
                               </button>
@@ -1568,7 +1603,7 @@ export function AdminFinanceiro({
                     </table>
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-400">
+                  <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
                     {periodoInicio && periodoFim
                       ? "Nenhuma despesa no período."
                       : "Defina um período para listar as despesas."}
@@ -1576,7 +1611,7 @@ export function AdminFinanceiro({
                 )}
               </div>
             </div>
-          </section>
+          </SectionCard>
         ) : null}
       </div>
     </div>

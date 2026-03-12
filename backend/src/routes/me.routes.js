@@ -71,7 +71,7 @@ router.get("/", authAdminMiddleware, async (req, res) => {
 
     const { data: barbearia, error: barbeariaErr } = await supabaseAdmin
       .from("barbearias")
-      .select("id, nome, slug, whatsapp, email, ativo, logo_url")
+      .select("id, nome, slug, whatsapp, email, ativo, logo_url, tema_admin")
       .eq("id", barbeariaId)
       .maybeSingle();
 
@@ -97,6 +97,7 @@ router.get("/", authAdminMiddleware, async (req, res) => {
       barbeariaEmail: barbearia?.email || null,
       barbeariaAtiva: barbearia?.ativo ?? null,
       barbeariaLogoUrl: barbearia?.logo_url || null,
+      barbeariaTemaAdmin: barbearia?.tema_admin || "dark",
     });
   } catch (err) {
     return res.status(500).json({

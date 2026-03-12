@@ -13,6 +13,40 @@ function formatPct(v) {
   return `${n.toFixed(2)}%`;
 }
 
+function Badge({ tone = "slate", children }) {
+  const map = {
+    slate:
+      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
+    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionCard({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function AdminProfissionais({
   accessToken,
   onVoltar,
@@ -223,117 +257,123 @@ export function AdminProfissionais({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
-      <div className="w-full max-w-6xl mx-auto">
-        <header className="mb-6 rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+    <div className="min-h-screen bg-[var(--bg-app)] px-4 py-8 text-[var(--text-app)] md:py-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 overflow-hidden rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
               {barbeariaLogoUrl ? (
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
-                />
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
               ) : (
-                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
-                  Sem logo
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-indigo-500/10 text-3xl">
+                  👤
                 </div>
               )}
 
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                  Painel administrativo
-                </p>
-                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  Equipe e comissionamento
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
                   {barbeariaNome || "Barbearia"}
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">Profissionais</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Somente owner. Aqui você cadastra profissionais e define comissões base.
+
+                <p className="mt-2 text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Cadastre profissionais, controle status e defina comissões base e por serviço.
                 </p>
               </div>
             </div>
 
             <button
               onClick={onVoltar}
-              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+              className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
             >
               Voltar ao painel
             </button>
           </div>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-slate-100 flex items-center gap-2 text-sm">
-                <span className="inline-block w-2 h-2 rounded-full bg-sky-400" />
-                {editingId ? "Editar profissional" : "Novo profissional"}
-              </h2>
+        <div className="grid gap-6 xl:grid-cols-[1.02fr_1.98fr]">
+          <SectionCard
+            title={editingId ? "Editar profissional" : "Novo profissional"}
+            subtitle="Defina os dados básicos e as comissões padrão de pacote e PDV."
+            actions={
               <button
                 type="button"
                 onClick={handleNovo}
-                className="text-[11px] px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
               >
                 Novo
               </button>
-            </div>
-
+            }
+          >
             {erroForm && (
-              <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                 {erroForm}
               </div>
             )}
 
             {mensagem && (
-              <div className="bg-emerald-900/40 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
                 {mensagem}
               </div>
             )}
 
             {profissionalEmEdicao && (
-              <p className="text-[11px] text-slate-400 mb-2">
-                Editando: <span className="font-medium">{profissionalEmEdicao.nome}</span>
-              </p>
+              <div className="mb-4">
+                <Badge tone="sky">Editando: {profissionalEmEdicao.nome}</Badge>
+              </div>
             )}
 
-            <form onSubmit={handleSalvar} className="space-y-3 text-xs">
+            <form onSubmit={handleSalvar} className="space-y-4">
               <div className="flex flex-col">
-                <label className="text-[11px] text-slate-400 mb-1">Nome do profissional</label>
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                  Nome do profissional
+                </label>
                 <input
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                 />
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[11px] text-slate-400 mb-1">WhatsApp (opcional)</label>
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                  WhatsApp (opcional)
+                </label>
                 <input
                   type="tel"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                 />
               </div>
 
-              <div className="flex items-center gap-2 mt-1">
+              <label className="inline-flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2.5 text-sm text-[var(--text-app)]">
                 <input
                   id="prof-ativo"
                   type="checkbox"
                   checked={ativo}
                   onChange={(e) => setAtivo(e.target.checked)}
-                  className="w-3 h-3"
+                  className="h-4 w-4"
                 />
-                <label htmlFor="prof-ativo" className="text-[11px] text-slate-300">
-                  Profissional ativo (aparece para o cliente)
-                </label>
-              </div>
+                Profissional ativo (aparece para o cliente)
+              </label>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col">
-                  <label className="text-[11px] text-slate-400 mb-1">Comissão Pacote (%)</label>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Comissão Pacote (%)
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -341,12 +381,14 @@ export function AdminProfissionais({
                     max="100"
                     value={comissaoPacotePct}
                     onChange={(e) => setComissaoPacotePct(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                   />
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[11px] text-slate-400 mb-1">Comissão PDV (%)</label>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Comissão PDV (%)
+                  </label>
                   <input
                     type="number"
                     step="0.01"
@@ -354,7 +396,7 @@ export function AdminProfissionais({
                     max="100"
                     value={comissaoPdvPct}
                     onChange={(e) => setComissaoPdvPct(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                   />
                 </div>
               </div>
@@ -362,7 +404,7 @@ export function AdminProfissionais({
               <button
                 type="submit"
                 disabled={loadingSalvar}
-                className="mt-3 w-full text-xs px-3 py-2 rounded-lg border border-sky-500 text-sky-100 hover:bg-sky-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="w-full rounded-xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
               >
                 {loadingSalvar
                   ? "Salvando..."
@@ -371,113 +413,125 @@ export function AdminProfissionais({
                   : "Criar profissional"}
               </button>
             </form>
-          </section>
+          </SectionCard>
 
-          <section className="flex flex-col gap-6">
-            <div className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
+          <div className="flex flex-col gap-6">
+            <SectionCard
+              title="Profissionais cadastrados"
+              subtitle="Gerencie status, edite dados base e acesse comissões por serviço."
+              actions={profissionais?.length ? <Badge tone="slate">{profissionais.length} profissionais</Badge> : null}
+            >
               {erroProfissionais && (
-                <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                   {erroProfissionais}
                 </div>
               )}
 
               {loadingProfissionais ? (
-                <p className="text-sm text-slate-400">Carregando profissionais...</p>
+                <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                  Carregando profissionais...
+                </div>
               ) : profissionais?.length ? (
-                <div className="max-h-[320px] overflow-y-auto pr-1">
-                  <table className="w-full text-[11px] border-collapse">
-                    <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-                      <tr className="text-slate-400 border-b border-slate-700/60">
-                        <th className="text-left py-2 pr-2 font-medium">Profissional</th>
-                        <th className="text-center py-2 px-2 font-medium">Status</th>
-                        <th className="text-right py-2 pl-2 font-medium">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profissionais.map((p) => (
-                        <tr
-                          key={p.id}
-                          className="border-b border-slate-800/60 hover:bg-slate-800/40"
-                        >
-                          <td className="py-2 pr-2 align-top text-slate-100">
-                            <div className="font-medium">{p.nome}</div>
-                            <div className="text-[10px] text-slate-400 mt-1">
-                              Pacote: {formatPct(p.comissao_pacote_pct)} · PDV:{" "}
-                              {formatPct(p.comissao_pdv_pct)}
+                <div className="space-y-3">
+                  {profissionais.map((p) => (
+                    <div
+                      key={p.id}
+                      className="overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-soft)]"
+                    >
+                      <div className="flex h-full">
+                        <div className={`w-1.5 shrink-0 ${p.ativo ? "bg-emerald-500" : "bg-slate-400"}`} />
+                        <div className="flex-1 p-4">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <Badge tone={p.ativo ? "emerald" : "slate"}>
+                                  {p.ativo ? "Ativo" : "Inativo"}
+                                </Badge>
+                                <Badge tone="amber">
+                                  Pacote: {formatPct(p.comissao_pacote_pct)}
+                                </Badge>
+                                <Badge tone="sky">
+                                  PDV: {formatPct(p.comissao_pdv_pct)}
+                                </Badge>
+                              </div>
+
+                              <h3 className="text-base font-bold text-[var(--text-app)]">
+                                {p.nome}
+                              </h3>
+
+                              {p.whatsapp ? (
+                                <div className="mt-2 text-[12px] text-[var(--text-muted)]">
+                                  WhatsApp: {p.whatsapp}
+                                </div>
+                              ) : (
+                                <div className="mt-2 text-[12px] text-[var(--text-soft)]">
+                                  Sem WhatsApp informado
+                                </div>
+                              )}
                             </div>
-                          </td>
-                          <td className="py-2 px-2 text-center align-top">
-                            <span
-                              className={
-                                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] " +
-                                (p.ativo
-                                  ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/40"
-                                  : "bg-slate-700/60 text-slate-300 border border-slate-600")
-                              }
-                            >
-                              {p.ativo ? "Ativo" : "Inativo"}
-                            </span>
-                          </td>
-                          <td className="py-2 pl-2 text-right align-top space-x-1">
-                            <button
-                              type="button"
-                              onClick={() => handleEditar(p)}
-                              className="inline-flex items-center px-2 py-1 rounded-lg border border-slate-600 text-[11px] text-slate-200 hover:bg-slate-800 transition"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedProfId(p.id)}
-                              className={
-                                "inline-flex items-center px-2 py-1 rounded-lg border text-[11px] transition " +
-                                (selectedProfId === p.id
-                                  ? "border-sky-500 text-sky-200 bg-sky-500/10"
-                                  : "border-slate-600 text-slate-200 hover:bg-slate-800")
-                              }
-                            >
-                              Comissões serviço
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAtivo(p)}
-                              className={
-                                "inline-flex items-center px-2 py-1 rounded-lg border text-[11px] transition " +
-                                (p.ativo
-                                  ? "border-amber-500 text-amber-300 hover:bg-amber-500/10"
-                                  : "border-emerald-500 text-emerald-300 hover:bg-emerald-500/10")
-                              }
-                            >
-                              {p.ativo ? "Desativar" : "Ativar"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleEditar(p)}
+                                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-app)]"
+                              >
+                                Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedProfId(p.id)}
+                                className={[
+                                  "rounded-xl border px-3 py-2 text-[11px] font-medium transition",
+                                  selectedProfId === p.id
+                                    ? "border-sky-500/60 bg-sky-500/10 text-sky-600"
+                                    : "border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-muted)] hover:bg-[var(--bg-app)]",
+                                ].join(" ")}
+                              >
+                                Comissões serviço
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAtivo(p)}
+                                className={[
+                                  "rounded-xl border px-3 py-2 text-[11px] font-medium transition",
+                                  p.ativo
+                                    ? "border-amber-500/60 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15"
+                                    : "border-emerald-500/60 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15",
+                                ].join(" ")}
+                              >
+                                {p.ativo ? "Desativar" : "Ativar"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">Nenhum profissional cadastrado ainda.</p>
-              )}
-            </div>
-
-            <div className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-slate-100 text-sm">Comissões por serviço</h3>
-                  <p className="text-[11px] text-slate-400">
-                    {profissionalSelecionado
-                      ? profissionalSelecionado.nome
-                      : "Selecione um profissional na lista."}
-                  </p>
+                <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                  Nenhum profissional cadastrado ainda.
                 </div>
+              )}
+            </SectionCard>
 
+            <SectionCard
+              title="Comissões por serviço"
+              subtitle={
+                profissionalSelecionado
+                  ? `Editando regras individuais de ${profissionalSelecionado.nome}.`
+                  : "Selecione um profissional na lista para editar as regras."
+              }
+              actions={
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => selectedProfId && carregarComissoesServico(selectedProfId)}
                     disabled={!selectedProfId || loadingServ}
-                    className="text-[11px] px-3 py-1 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)] disabled:opacity-60"
                   >
                     Atualizar
                   </button>
@@ -485,42 +539,44 @@ export function AdminProfissionais({
                     type="button"
                     onClick={salvarComissoesServico}
                     disabled={!selectedProfId || loadingServ}
-                    className="text-[11px] px-3 py-1 rounded-lg border border-sky-500 text-sky-100 hover:bg-sky-500/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
                   >
                     Salvar
                   </button>
                 </div>
-              </div>
-
+              }
+            >
               {erroServ ? (
-                <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+                <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                   {erroServ}
                 </div>
               ) : null}
 
               {!selectedProfId ? (
-                <div className="text-[11px] text-slate-400">
+                <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
                   Escolha um profissional para editar as comissões.
                 </div>
               ) : loadingServ ? (
-                <div className="text-[11px] text-slate-400">Carregando comissões…</div>
+                <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                  Carregando comissões…
+                </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px] border-collapse">
-                    <thead className="bg-slate-900/60">
-                      <tr className="text-slate-400 border-b border-slate-700/60">
-                        <th className="text-left py-2 pr-2 font-medium">Serviço</th>
-                        <th className="text-left py-2 px-2 font-medium">Preço</th>
-                        <th className="text-left py-2 px-2 font-medium">Comissão (%)</th>
-                        <th className="text-right py-2 pl-2 font-medium">Vigente</th>
+                <div className="overflow-x-auto rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)]">
+                  <table className="w-full border-collapse text-[12px]">
+                    <thead>
+                      <tr className="border-b border-[var(--border-color)] text-[var(--text-muted)]">
+                        <th className="px-4 py-3 text-left font-medium">Serviço</th>
+                        <th className="px-3 py-3 text-left font-medium">Preço</th>
+                        <th className="px-3 py-3 text-left font-medium">Comissão (%)</th>
+                        <th className="px-4 py-3 text-right font-medium">Vigente</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(itensServ || []).map((it) => (
-                        <tr key={it.servico_id} className="border-b border-slate-800/60">
-                          <td className="py-2 pr-2 text-slate-100">{it.servico_nome}</td>
-                          <td className="py-2 px-2 text-slate-200">{formatBRL(it.preco)}</td>
-                          <td className="py-2 px-2">
+                        <tr key={it.servico_id} className="border-b border-[var(--border-color)] last:border-b-0">
+                          <td className="px-4 py-3 text-[var(--text-app)]">{it.servico_nome}</td>
+                          <td className="px-3 py-3 text-[var(--text-muted)]">{formatBRL(it.preco)}</td>
+                          <td className="px-3 py-3">
                             <input
                               type="number"
                               step="0.01"
@@ -533,27 +589,24 @@ export function AdminProfissionais({
                                   [it.servico_id]: e.target.value,
                                 }))
                               }
-                              className="w-28 bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                              className="w-28 rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                             />
                           </td>
-                          <td className="py-2 pl-2 text-right">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] bg-slate-800/60 border border-slate-700 text-slate-200">
-                              {formatPct(it.comissao_pct_vigente)}
-                            </span>
+                          <td className="px-4 py-3 text-right">
+                            <Badge tone="slate">{formatPct(it.comissao_pct_vigente)}</Badge>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
 
-                  <p className="text-[10px] text-slate-400 mt-3">
-                    Nota: por enquanto salvamos uma regra vigente a partir de hoje. Se você
-                    quiser vigência por data, a gente adiciona inputs de vigência e histórico.
-                  </p>
+                  <div className="border-t border-[var(--border-color)] px-4 py-3 text-[11px] text-[var(--text-muted)]">
+                    Hoje a regra é salva como vigente a partir de agora. Se quiser histórico com vigência por data, o próximo passo é modelar isso.
+                  </div>
                 </div>
               )}
-            </div>
-          </section>
+            </SectionCard>
+          </div>
         </div>
       </div>
     </div>

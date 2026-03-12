@@ -1,4 +1,3 @@
-// src/components/admin/AdminLogin.jsx
 import { useState } from "react";
 
 export function AdminLogin({ onLogin, loading, erro }) {
@@ -11,44 +10,45 @@ export function AdminLogin({ onLogin, loading, erro }) {
   }
 
   return (
-    <div className="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-slate-800/80 border border-slate-700 rounded-2xl p-6">
-        <h1 className="text-xl font-bold text-slate-50 mb-1">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[var(--bg-app)] text-[var(--text-app)]">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-6">
+        <h1 className="mb-1 text-xl font-bold text-[var(--text-app)]">
           Login do Profissional
         </h1>
-        <p className="text-xs text-slate-400 mb-4">
+
+        <p className="mb-4 text-xs text-[var(--text-muted)]">
           Acesse o painel admin do BarberFlow com seu e-mail e senha.
         </p>
 
         {erro && (
-          <div className="bg-red-900/40 border border-red-500/60 text-red-100 px-3 py-2 rounded-lg text-xs mb-3">
+          <div className="mb-3 rounded-lg border border-red-500/60 bg-red-900/40 px-3 py-2 text-xs text-red-100">
             {erro}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">
               E-mail
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-app)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label className="mb-1 block text-xs font-medium text-[var(--text-muted)]">
               Senha
             </label>
             <input
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-app)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
             />
           </div>
@@ -56,7 +56,7 @@ export function AdminLogin({ onLogin, loading, erro }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium text-white transition"
+            className="mt-2 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
@@ -65,4 +65,3 @@ export function AdminLogin({ onLogin, loading, erro }) {
     </div>
   );
 }
-

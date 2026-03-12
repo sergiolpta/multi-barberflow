@@ -1,4 +1,3 @@
-// src/hooks/useAdminAuth.js
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { apiFetch } from "../config/api";
@@ -14,6 +13,7 @@ export function useAdminAuth() {
   const [adminBarbeariaId, setAdminBarbeariaId] = useState("");
   const [adminBarbeariaNome, setAdminBarbeariaNome] = useState("");
   const [adminBarbeariaLogoUrl, setAdminBarbeariaLogoUrl] = useState("");
+  const [adminBarbeariaTemaAdmin, setAdminBarbeariaTemaAdmin] = useState("dark");
 
   // evita race condition no /me
   const reqSeq = useRef(0);
@@ -32,6 +32,7 @@ export function useAdminAuth() {
     setAdminBarbeariaId("");
     setAdminBarbeariaNome("");
     setAdminBarbeariaLogoUrl("");
+    setAdminBarbeariaTemaAdmin("dark");
   }, []);
 
   const limparSessaoLocal = useCallback(() => {
@@ -42,9 +43,9 @@ export function useAdminAuth() {
   }, [limparPerfil]);
 
   const carregarPerfilAdmin = useCallback(
-  async (token) => {
-    const tokenUsado = token;
-    if (!tokenUsado) return;
+    async (token) => {
+      const tokenUsado = token;
+      if (!tokenUsado) return;
 
       const mySeq = ++reqSeq.current;
 
@@ -63,6 +64,7 @@ export function useAdminAuth() {
         setAdminBarbeariaId(me?.barbeariaId || "");
         setAdminBarbeariaNome(me?.barbeariaNome || "");
         setAdminBarbeariaLogoUrl(me?.barbeariaLogoUrl || "");
+        setAdminBarbeariaTemaAdmin(me?.barbeariaTemaAdmin || "dark");
       } catch (err) {
         if (mySeq !== reqSeq.current) return;
 
@@ -84,7 +86,6 @@ export function useAdminAuth() {
     [limparSessaoLocal, limparPerfil]
   );
 
-  // Carrega sessão inicial
   useEffect(() => {
     async function loadSession() {
       if (!mountedRef.current) return;
@@ -189,6 +190,7 @@ export function useAdminAuth() {
     adminBarbeariaId,
     adminBarbeariaNome,
     adminBarbeariaLogoUrl,
+    adminBarbeariaTemaAdmin,
     loading,
     erro,
     login,

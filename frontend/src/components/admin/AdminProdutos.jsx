@@ -10,8 +10,42 @@ function MoneyInput({ value, onChange }) {
       min="0"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
     />
+  );
+}
+
+function Badge({ tone = "slate", children }) {
+  const map = {
+    slate:
+      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
+    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionCard({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -159,37 +193,41 @@ export function AdminProdutos({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
-      <div className="w-full max-w-5xl mx-auto space-y-6">
-        <header className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+    <div className="min-h-screen bg-[var(--bg-app)] px-4 py-8 text-[var(--text-app)] md:py-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 overflow-hidden rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-sky-500 to-violet-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
               {barbeariaLogoUrl ? (
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
-                />
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
               ) : (
-                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
-                  Sem logo
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-500/10 text-3xl">
+                  🧴
                 </div>
               )}
 
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                  Painel administrativo
-                </p>
-                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  Estoque e catálogo
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
                   {barbeariaNome || "Barbearia"}
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">Produtos</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Cadastro e controle básico de estoque (sem negativo).
+
+                <p className="mt-2 text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Cadastre produtos, controle estoque e organize preços de custo e venda.
                 </p>
 
                 {!podeGerir && (
-                  <p className="text-[11px] text-slate-500 mt-2">
+                  <p className="mt-2 text-[12px] text-[var(--text-soft)]">
                     Seu perfil pode visualizar, mas não pode alterar produtos.
                   </p>
                 )}
@@ -198,7 +236,7 @@ export function AdminProdutos({
 
             <button
               onClick={onVoltar}
-              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+              className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
             >
               Voltar ao painel
             </button>
@@ -206,46 +244,53 @@ export function AdminProdutos({
         </header>
 
         {msg ? (
-          <div className="rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-3 text-xs text-slate-200">
+          <div className="mb-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-3 text-sm text-[var(--text-app)]">
             {msg}
           </div>
         ) : null}
 
         {erro ? (
-          <div className="rounded-xl border border-red-700 bg-red-900/30 px-4 py-3 text-xs text-red-100">
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
             {erro}
           </div>
         ) : null}
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <section className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-            <h2 className="font-semibold text-slate-50">Novo produto</h2>
-
-            <form onSubmit={handleCriar} className="mt-3 grid gap-2 text-xs">
+        <div className="grid gap-6 xl:grid-cols-[1.02fr_1.98fr]">
+          <SectionCard
+            title="Novo produto"
+            subtitle="Cadastre um item com estoque inicial, custo, preço de venda e status."
+          >
+            <form onSubmit={handleCriar} className="space-y-4">
               <div className="flex flex-col">
-                <span className="text-[11px] text-slate-400 mb-1">Nome</span>
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                  Nome
+                </label>
                 <input
                   value={form.nome}
                   onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 mb-1">Estoque</span>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Estoque
+                  </label>
                   <input
                     type="number"
                     step="1"
                     min="0"
                     value={form.estoque_qtd}
                     onChange={(e) => setForm((s) => ({ ...s, estoque_qtd: e.target.value }))}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                   />
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 mb-1">Custo (R$)</span>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Custo (R$)
+                  </label>
                   <MoneyInput
                     value={form.preco_custo}
                     onChange={(v) => setForm((s) => ({ ...s, preco_custo: v }))}
@@ -253,7 +298,9 @@ export function AdminProdutos({
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 mb-1">Venda (R$)</span>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Venda (R$)
+                  </label>
                   <MoneyInput
                     value={form.preco_venda}
                     onChange={(v) => setForm((s) => ({ ...s, preco_venda: v }))}
@@ -261,11 +308,12 @@ export function AdminProdutos({
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 mt-1 text-[11px] text-slate-300">
+              <label className="inline-flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2.5 text-sm text-[var(--text-app)]">
                 <input
                   type="checkbox"
                   checked={!!form.ativo}
                   onChange={(e) => setForm((s) => ({ ...s, ativo: e.target.checked }))}
+                  className="h-4 w-4"
                 />
                 Produto ativo
               </label>
@@ -273,102 +321,113 @@ export function AdminProdutos({
               <button
                 type="submit"
                 disabled={!podeGerir || salvando}
-                className="mt-2 w-full text-xs px-3 py-2 rounded-lg border border-emerald-500 text-emerald-100 hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {salvando ? "Salvando..." : "Criar produto"}
               </button>
             </form>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-semibold text-slate-50">Lista</h2>
-              <button
-                onClick={recarregar}
-                className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-              >
-                Atualizar
-              </button>
-            </div>
-
-            <div className="mt-3">
+          <SectionCard
+            title="Lista de produtos"
+            subtitle="Pesquise por nome e gerencie estoque, preços e status de cada item."
+            actions={
+              <>
+                <button
+                  onClick={recarregar}
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+                >
+                  Atualizar
+                </button>
+              </>
+            }
+          >
+            <div className="mb-4">
               <input
                 placeholder="Buscar por nome..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-3 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
               />
             </div>
 
             {loading ? (
-              <p className="text-sm text-slate-400 mt-3">Carregando...</p>
-            ) : (
-              <ul className="mt-3 space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Carregando produtos...
+              </div>
+            ) : produtosFiltrados.length ? (
+              <div className="space-y-3">
                 {produtosFiltrados.map((p) => (
-                  <li
+                  <div
                     key={p.id}
-                    className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs flex items-start justify-between gap-2"
+                    className="overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-soft)]"
                   >
-                    <div>
-                      <div className="font-semibold text-slate-100">{p.nome}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        Estoque: <span className="text-slate-200">{p.estoque_qtd}</span> • Venda:{" "}
-                        <span className="text-emerald-300">
-                          R$ {Number(p.preco_venda || 0).toFixed(2)}
-                        </span>{" "}
-                        • Custo:{" "}
-                        <span className="text-slate-300">
-                          R$ {Number(p.preco_custo || 0).toFixed(2)}
-                        </span>
-                      </div>
+                    <div className="flex h-full">
+                      <div className={`w-1.5 shrink-0 ${p.ativo ? "bg-emerald-500" : "bg-slate-400"}`} />
+                      <div className="flex-1 p-4">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge tone={p.ativo ? "emerald" : "slate"}>
+                                {p.ativo ? "Ativo" : "Inativo"}
+                              </Badge>
+                              <Badge tone="sky">Estoque: {p.estoque_qtd}</Badge>
+                              <Badge tone="emerald">
+                                Venda: R$ {Number(p.preco_venda || 0).toFixed(2)}
+                              </Badge>
+                              <Badge tone="slate">
+                                Custo: R$ {Number(p.preco_custo || 0).toFixed(2)}
+                              </Badge>
+                            </div>
 
-                      <div className="mt-1">
-                        {p.ativo ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/30 text-emerald-100 border border-emerald-700">
-                            Ativo
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-200 border border-slate-600">
-                            Inativo
-                          </span>
-                        )}
+                            <h3 className="text-base font-bold text-[var(--text-app)]">
+                              {p.nome}
+                            </h3>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                            <button
+                              onClick={() => handleEditarPrecos(p)}
+                              disabled={!podeGerir}
+                              className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-app)] disabled:opacity-60"
+                            >
+                              Preços
+                            </button>
+
+                            <button
+                              onClick={() => handleAjustarEstoque(p)}
+                              disabled={!podeGerir}
+                              className="rounded-xl border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-[11px] font-medium text-sky-600 transition hover:bg-sky-500/15 disabled:opacity-60"
+                            >
+                              Estoque
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleAtivo(p)}
+                              disabled={!podeGerir}
+                              className="rounded-xl border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-700 transition hover:bg-amber-500/15 disabled:opacity-60"
+                            >
+                              {p.ativo ? "Desativar" : "Ativar"}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      <button
-                        onClick={() => handleEditarPrecos(p)}
-                        disabled={!podeGerir}
-                        className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition disabled:opacity-60"
-                      >
-                        Preços
-                      </button>
-
-                      <button
-                        onClick={() => handleAjustarEstoque(p)}
-                        disabled={!podeGerir}
-                        className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition disabled:opacity-60"
-                      >
-                        Estoque
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleAtivo(p)}
-                        disabled={!podeGerir}
-                        className="px-2 py-1 rounded-lg border border-slate-600 text-slate-200 text-[10px] hover:bg-slate-800 transition disabled:opacity-60"
-                      >
-                        {p.ativo ? "Desativar" : "Ativar"}
-                      </button>
-                    </div>
-                  </li>
+                  </div>
                 ))}
 
                 {!produtosFiltrados.length ? (
-                  <li className="text-sm text-slate-400">Nenhum produto encontrado.</li>
+                  <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                    Nenhum produto encontrado.
+                  </div>
                 ) : null}
-              </ul>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Nenhum produto encontrado.
+              </div>
             )}
-          </section>
+          </SectionCard>
         </div>
       </div>
     </div>

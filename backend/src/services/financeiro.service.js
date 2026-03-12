@@ -24,7 +24,6 @@ function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
-// ✅ ROBUSTO: lower + trim + remove acentos (concluído → concluido)
 function normalizeStatusLoose(s) {
   return String(s || "")
     .trim()
@@ -33,7 +32,6 @@ function normalizeStatusLoose(s) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-// mantemos o nome antigo para não quebrar o resto do arquivo
 function normalizeStatus(s) {
   return normalizeStatusLoose(s);
 }
@@ -76,7 +74,6 @@ export async function obterFechamentoQueCobreData({ barbeariaId, dataRefYYYYMMDD
   if (error) throw new Error(`Erro ao buscar fechamento por data: ${error.message}`);
   if (!Array.isArray(rows) || rows.length === 0) return null;
 
-  // Preferir confirmado (qualquer variação), depois aberto, depois o mais recente
   const confirmado = rows.find((r) => isStatusConfirmadoLoose(r.status));
   if (confirmado) return confirmado;
 
@@ -88,7 +85,6 @@ export async function obterFechamentoQueCobreData({ barbeariaId, dataRefYYYYMMDD
 
 /**
  * Busca 1 fechamento CONFIRMADO que cubra a dataRef (YYYY-MM-DD).
- * (decide no JS, não no filtro eq("status","confirmado") que quebrava com maiúsculas/espaços)
  */
 export async function encontrarFechamentoConfirmadoQueCobreData({
   barbeariaId,
@@ -101,7 +97,6 @@ export async function encontrarFechamentoConfirmadoQueCobreData({
 
 /**
  * Garante que NÃO existe fechamento CONFIRMADO cobrindo dataRef.
- * Se existir, lança erro padronizado para controller transformar em 409.
  */
 export async function assertPeriodoNaoTravadoPorFechamentoConfirmado({
   barbeariaId,
@@ -124,7 +119,6 @@ export async function assertPeriodoNaoTravadoPorFechamentoConfirmado({
 
 /** -------------------- PDV -------------------- **/
 function groupByProfissionalForPdv(vendas) {
-  // pid -> { profissional_id, comissao_total, lucro_total, bruto_total, qtd_vendas }
   const map = new Map();
 
   for (const v of vendas || []) {
@@ -152,7 +146,6 @@ function groupByProfissionalForPdv(vendas) {
 
 /** -------------------- ADIANTAMENTOS -------------------- **/
 function groupAdiantamentos(adiant) {
-  // pid -> { total, qtd }
   const adMap = new Map();
 
   for (const a of adiant || []) {
@@ -173,7 +166,6 @@ function groupAdiantamentos(adiant) {
 
 /** -------------------- PACOTES -------------------- **/
 function groupPacotesByProfissional(pagamentos) {
-  // pid -> { total, comissao_total, qtd }
   const map = new Map();
 
   for (const p of pagamentos || []) {
@@ -191,7 +183,6 @@ function groupPacotesByProfissional(pagamentos) {
 
 /** -------------------- SERVIÇOS (AGENDAMENTOS) -------------------- **/
 function groupServicosByProfissional(agendamentos) {
-  // pid -> { total, comissao_total, qtd }
   const map = new Map();
 
   for (const a of agendamentos || []) {
@@ -199,8 +190,6 @@ function groupServicosByProfissional(agendamentos) {
     if (!map.has(pid)) map.set(pid, { total: 0, comissao_total: 0, qtd: 0 });
 
     const row = map.get(pid);
-
-    // usa preço “resolvido” (preco_aplicado OU servico.preco)
     const preco = Number(a.preco_resolvido ?? a.preco_aplicado ?? a?.servico?.preco ?? 0);
 
     row.total += preco;
@@ -211,35 +200,42 @@ function groupServicosByProfissional(agendamentos) {
   return map;
 }
 
-// helper: considera "não calculado" se está null, ou se ficou no padrão 0/0
+// helper: considera "não calculado" se está null, ou se ficou inconsistente
 function precisaRecalcularComissaoServico(a) {
-  const pct = Number(a?.comissao_pct_aplicada ?? 0);
-  const val = Number(a?.comissao_valor ?? 0);
+  const pctRaw = a?.comissao_pct_aplicada;
+  const valRaw = a?.comissao_valor;
 
-  // caso 1: não existe (null/undefined)
-  if (a?.comissao_valor == null || a?.comissao_pct_aplicada == null) return true;
+  const pct = Number(pctRaw ?? 0);
+  const val = Number(valRaw ?? 0);
+  const preco = Number(a?.preco_resolvido ?? a?.preco_aplicado ?? a?.servico?.preco ?? 0);
 
-  // caso 2: gravado “zerado” (0/0) antes das regras existirem
-  if (pct === 0 && val === 0) return true;
+  if (valRaw == null || pctRaw == null) return true;
+  if (pct === 0 && val === 0 && preco > 0) return true;
+  if (pct > 0 && val === 0 && preco > 0) return true;
+  if (pct === 0 && val > 0) return true;
+
+  return false;
+}
+
+// helper equivalente para extras salvos em vendas
+function precisaRecalcularComissaoExtra(venda) {
+  const pctRaw = venda?.comissao_pct_aplicada;
+  const valRaw = venda?.comissao_valor;
+
+  const pct = Number(pctRaw ?? 0);
+  const val = Number(valRaw ?? 0);
+  const total = Number(venda?.total ?? 0);
+
+  if (valRaw == null || pctRaw == null) return true;
+  if (pct === 0 && val === 0 && total > 0) return true;
+  if (pct > 0 && val === 0 && total > 0) return true;
+  if (pct === 0 && val > 0) return true;
 
   return false;
 }
 
 /**
- * Fechamento financeiro por período:
- * - SERVIÇOS: agendamentos (status "confirmado") no período (data DATE)
- * - PDV: vendas (created_at timestamptz) no período
- * - PACOTES: pacote_pagamentos (pago_em timestamptz) no período
- * - ADIANTAMENTOS: desconta da comissão bruta do profissional (data DATE)
- *
- * ✅ Importante:
- * - Para RESULTADO do PDV, usamos o LUCRO (lucro_total).
- * - total (bruto) fica como informativo.
- *
- * ✅ CORREÇÃO (2026-03):
- * - Vendas com agendamento_id e itens APENAS de SERVIÇO NÃO são PDV.
- *   Elas são "SERVIÇOS EXTRAS" e devem somar em SERVIÇOS (total e comissão),
- *   para o profissional não ficar no escuro e o snapshot bater com a prévia.
+ * Fechamento financeiro por período
  */
 export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
   const inicioTs = toISOStartLocal(dataInicio);
@@ -290,15 +286,14 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
         precoAplicado: preco,
       });
 
-      a.comissao_valor = snap.comissao_valor;
-      a.comissao_pct_aplicada = snap.comissao_pct_aplicada;
+      a.comissao_valor = Number(snap?.comissao_valor ?? 0);
+      a.comissao_pct_aplicada = Number(snap?.comissao_pct_aplicada ?? 0);
     } else {
       a.comissao_valor = 0;
       a.comissao_pct_aplicada = Number(a.comissao_pct_aplicada ?? 0);
     }
   }
 
-  // base: serviços por profissional (agendamentos)
   const servicosPorProfMap = groupServicosByProfissional(agendsRaw);
 
   // =========================
@@ -306,7 +301,9 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
   // =========================
   const { data: vendasRaw, error: vendasErr } = await supabase
     .from("vendas")
-    .select("id,total,lucro_total,profissional_id,comissao_valor,created_at,agendamento_id")
+    .select(
+      "id,total,lucro_total,profissional_id,comissao_valor,comissao_pct_aplicada,created_at,agendamento_id"
+    )
     .eq("barbearia_id", barbeariaId)
     .gte("created_at", inicioTs)
     .lte("created_at", fimTs);
@@ -320,12 +317,11 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
   // =========================
   let qtdItensPdv = 0;
 
-  // venda_id -> flags
-  const vendaInfo = new Map(); // venda_id -> { has_produto, has_servico, qtd_itens_total }
+  const vendaInfo = new Map(); // venda_id -> { has_produto, has_servico, qtd_itens_total, itens }
   if (vendaIds.length > 0) {
     const { data: itens, error: itensErr } = await supabase
       .from("venda_itens")
-      .select("venda_id, quantidade, item_tipo, produto_id, servico_id")
+      .select("venda_id, quantidade, item_tipo, produto_id, servico_id, subtotal")
       .in("venda_id", vendaIds);
 
     if (itensErr) throw new Error(`Erro ao buscar itens: ${itensErr.message}`);
@@ -333,7 +329,12 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
     for (const it of itens || []) {
       const vid = it.venda_id;
       if (!vendaInfo.has(vid)) {
-        vendaInfo.set(vid, { has_produto: false, has_servico: false, qtd_itens_total: 0 });
+        vendaInfo.set(vid, {
+          has_produto: false,
+          has_servico: false,
+          qtd_itens_total: 0,
+          itens: [],
+        });
       }
 
       const row = vendaInfo.get(vid);
@@ -346,21 +347,25 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
       if (temServico) row.has_servico = true;
 
       row.qtd_itens_total += Number(it.quantidade ?? 0);
+      row.itens.push(it);
     }
   }
 
   // =========================
-  // 3) Separar PDV x EXTRAS (serviços lançados via vendas)
+  // 3) Separar PDV x EXTRAS
   // =========================
   const vendasExtrasServicos = [];
   const vendasPdv = [];
 
   for (const v of vendasRaw || []) {
-    const info = vendaInfo.get(v.id) || { has_produto: false, has_servico: false, qtd_itens_total: 0 };
+    const info = vendaInfo.get(v.id) || {
+      has_produto: false,
+      has_servico: false,
+      qtd_itens_total: 0,
+      itens: [],
+    };
 
     const temAgendamento = v.agendamento_id != null;
-
-    // ✅ extra: vinculado ao agendamento e NÃO tem produto, mas tem serviço
     const ehExtraServico = temAgendamento && info.has_servico && !info.has_produto;
 
     if (ehExtraServico) {
@@ -374,7 +379,6 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
   // =========================
   // 4) Somar extras em SERVIÇOS (por profissional)
   // =========================
-  // ✅ CORRIGIDO: soma também comissao_valor do extra (já gravada em vendas)
   let totalExtrasServicos = 0;
   let totalComissaoExtrasServicos = 0;
 
@@ -386,36 +390,85 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
     const row = servicosPorProfMap.get(pid);
 
     const valor = Number(v.total ?? 0);
-    const com = Number(v.comissao_valor ?? 0);
+
+    let com = Number(v.comissao_valor ?? 0);
+    let pctAplicadaExtra = Number(v.comissao_pct_aplicada ?? 0);
+
+    const precisaRecalcExtra = precisaRecalcularComissaoExtra(v);
+    const info = vendaInfo.get(v.id) || { itens: [] };
+
+    if (precisaRecalcExtra && pid && v.agendamento_id) {
+      const { data: agExtra, error: agExtraErr } = await supabase
+        .from("agendamentos")
+        .select("id, data")
+        .eq("id", v.agendamento_id)
+        .eq("barbearia_id", barbeariaId)
+        .single();
+
+      if (!agExtraErr && agExtra?.data) {
+        let comissaoRecalculada = 0;
+
+        for (const it of info.itens || []) {
+          const servicoId = String(it?.servico_id || "").trim();
+          const subtotal = Number(it?.subtotal ?? 0);
+
+          if (!servicoId || subtotal <= 0) continue;
+
+          const snap = await calcularComissaoServico({
+            barbeariaId,
+            profissionalId: pid,
+            servicoId,
+            dataRefYYYYMMDD: String(agExtra.data).slice(0, 10),
+            precoAplicado: subtotal,
+          });
+
+          comissaoRecalculada = Number(
+            (comissaoRecalculada + Number(snap?.comissao_valor ?? 0)).toFixed(2)
+          );
+        }
+
+        com = comissaoRecalculada;
+        pctAplicadaExtra = valor > 0 ? Number(((com / valor) * 100).toFixed(2)) : 0;
+      }
+    }
 
     row.total += valor;
-    row.comissao_total += com; // ✅ aqui estava faltando
+    row.comissao_total += com;
     row.qtd += 1;
 
     totalExtrasServicos += valor;
     totalComissaoExtrasServicos += com;
+
+    // opcionalmente poderia persistir o snapshot recalculado aqui,
+    // mas por enquanto o fechamento apenas usa o valor recalculado em memória.
+    void pctAplicadaExtra;
   }
 
-  // ✅ total de serviços agora inclui extras
   const totalServicos = round2(sumNumber(agendsRaw, (a) => a.preco_resolvido) + totalExtrasServicos);
 
   const totalComissaoServicos = round2(
-    Array.from(servicosPorProfMap.values()).reduce((acc, r) => acc + Number(r.comissao_total ?? 0), 0)
+    Array.from(servicosPorProfMap.values()).reduce(
+      (acc, r) => acc + Number(r.comissao_total ?? 0),
+      0
+    )
   );
 
   // =========================
-  // 5) PDV (somente vendasPdv)
+  // 5) PDV
   // =========================
   const pdvBruto = round2(sumNumber(vendasPdv, (v) => v.total));
   const pdvLucro = round2(sumNumber(vendasPdv, (v) => v.lucro_total));
 
   const pdvPorProfMap = groupByProfissionalForPdv(vendasPdv);
   const totalComissaoPdv = round2(
-    Array.from(pdvPorProfMap.values()).reduce((acc, r) => acc + Number(r.comissao_total ?? 0), 0)
+    Array.from(pdvPorProfMap.values()).reduce(
+      (acc, r) => acc + Number(r.comissao_total ?? 0),
+      0
+    )
   );
 
   // =========================
-  // 6) PACOTES (pagamentos)
+  // 6) PACOTES
   // =========================
   const { data: pacotePag, error: pacoteErr } = await supabase
     .from("pacote_pagamentos")
@@ -437,8 +490,8 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
           profissionalId: pid,
           valorPago: Number(p.valor ?? 0),
         });
-        p.comissao_valor = snap.comissao_valor;
-        p.comissao_pct_aplicada = snap.comissao_pct_aplicada;
+        p.comissao_valor = Number(snap?.comissao_valor ?? 0);
+        p.comissao_pct_aplicada = Number(snap?.comissao_pct_aplicada ?? 0);
       } else {
         p.comissao_valor = 0;
         p.comissao_pct_aplicada = 0;
@@ -450,7 +503,10 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
 
   const pacotesPorProfMap = groupPacotesByProfissional(pacotePag);
   const totalComissaoPacotes = round2(
-    Array.from(pacotesPorProfMap.values()).reduce((acc, r) => acc + Number(r.comissao_total ?? 0), 0)
+    Array.from(pacotesPorProfMap.values()).reduce(
+      (acc, r) => acc + Number(r.comissao_total ?? 0),
+      0
+    )
   );
 
   // =========================
@@ -472,7 +528,7 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
   const { totalAdiantamentos: totalAdiantAbatidos } = groupAdiantamentos(adiantAbatidos);
 
   // =========================
-  // 8) Consolidar por profissional
+  // 8) Consolidar
   // =========================
   const allPids = new Set([
     ...Array.from(servicosPorProfMap.keys()),
@@ -569,19 +625,16 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
     comissoes: {
       por_profissional: porProfissional,
       total: round2(totalComissaoServicos + totalComissaoPdv + totalComissaoPacotes),
-      // ✅ continua sendo SOMENTE pendentes
       total_adiantamentos: round2(totalAdiantamentos),
       total_liquido: round2(totalLiquido),
     },
 
-    // ✅ informativo: abatidos
     adiantamentos_info: {
       pendentes: round2(totalAdiantamentos),
       abatidos: round2(totalAdiantAbatidos),
       total_periodo: round2(totalAdiantamentos + totalAdiantAbatidos),
     },
 
-    // ✅ opcional para debug / UI futura
     extras_servicos_info: {
       qtd_vendas: vendasExtrasServicos?.length ?? 0,
       total: round2(totalExtrasServicos),
@@ -608,7 +661,7 @@ export async function criarFechamento({ barbeariaId, dataInicio, dataFim, userId
 }
 
 /**
- * Snapshot congelado em fechamento_profissionais (idempotente por unique (fechamento_id, profissional_id))
+ * Snapshot congelado em fechamento_profissionais
  */
 export async function gerarSnapshotFechamento({ barbeariaId, fechamentoId }) {
   const { data: fechamento, error: fErr } = await supabase
@@ -831,7 +884,7 @@ export async function deletarDespesa({ barbeariaId, despesaId }) {
 }
 
 /* =========================================================
- * FECHAMENTOS (LISTAGEM) — NOVO
+ * FECHAMENTOS (LISTAGEM)
  * ========================================================= */
 
 export async function listarFechamentos({ barbeariaId, inicio = "", fim = "", limit = 50 }) {
@@ -845,7 +898,6 @@ export async function listarFechamentos({ barbeariaId, inicio = "", fim = "", li
   const i = String(inicio || "").trim();
   const f = String(fim || "").trim();
 
-  // interseção de períodos: periodo_fim >= inicio AND periodo_inicio <= fim
   if (i && f) {
     q = q.gte("periodo_fim", i).lte("periodo_inicio", f);
   } else if (i) {

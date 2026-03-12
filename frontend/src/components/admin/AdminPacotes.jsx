@@ -36,6 +36,40 @@ function sortHorarios(horarios) {
   });
 }
 
+function Badge({ tone = "slate", children }) {
+  const map = {
+    slate:
+      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
+    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionCard({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function AdminPacotes({
   profissionais,
   accessToken,
@@ -403,104 +437,118 @@ export function AdminPacotes({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-5xl">
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-center gap-4">
-            {barbeariaLogoUrl ? (
-              <div className="h-16 w-16 rounded-2xl bg-white/95 p-2 shadow-lg shadow-black/20 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="max-h-full max-w-full object-contain"
-                />
+    <div className="min-h-screen bg-[var(--bg-app)] px-4 py-8 text-[var(--text-app)] md:py-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 overflow-hidden rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-sky-500 to-emerald-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              {barbeariaLogoUrl ? (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-violet-500/10 text-3xl">
+                  📦
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  Pacotes recorrentes
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
+                  {barbeariaNome || "Pacotes Fixos"}{" "}
+                  <span className="text-[var(--text-muted)]">(Clientes VIP)</span>
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Crie pacotes semanais recorrentes, reserve horários, controle cobrança mensal e acompanhe o histórico de pagamentos.
+                </p>
               </div>
-            ) : null}
-
-            <div>
-              <h1 className="text-2xl font-bold text-slate-50">
-                {barbeariaNome || "Pacotes Fixos"} <span className="text-slate-400">(Clientes VIP)</span>
-              </h1>
-              <p className="text-sm text-slate-400 mt-1">
-                Configure horários semanais reservados por cliente. Pagamento mensal é registrado no financeiro.
-              </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={onVoltarAgenda}
-              className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-            >
-              Voltar para Agenda
-            </button>
-            <button
-              onClick={onSair}
-              className="text-xs px-3 py-1 rounded-lg border border-rose-600 text-rose-200 hover:bg-rose-800/40 transition"
-            >
-              Sair para Agendamento
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button
+                onClick={onVoltarAgenda}
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+              >
+                Voltar para Agenda
+              </button>
+              <button
+                onClick={onSair}
+                className="inline-flex items-center justify-center rounded-xl border border-rose-500/60 bg-rose-500/10 px-4 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-500/15"
+              >
+                Sair para Agendamento
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="grid md:grid-cols-[1.3fr_1.7fr] gap-6">
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4">
-            <h2 className="font-semibold text-slate-100 mb-3">
-              Novo pacote semanal
-            </h2>
-
+        <div className="grid gap-6 xl:grid-cols-[1.08fr_1.92fr]">
+          <SectionCard
+            title="Novo pacote semanal"
+            subtitle="Monte um pacote com múltiplos horários recorrentes, vigência e regra de cobrança."
+          >
             {mensagemSucesso && (
-              <div className="bg-emerald-900/40 border border-emerald-600 text-emerald-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
                 {mensagemSucesso}
               </div>
             )}
 
             {mensagemErroCriacao && (
-              <div className="bg-red-900/40 border border-red-600 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                 {mensagemErroCriacao}
               </div>
             )}
 
-            <form onSubmit={handleCriarPacote} className="space-y-3 text-xs">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
-                  Cliente (nome livre)
-                </label>
-                <input
-                  type="text"
-                  value={clienteNome}
-                  onChange={(e) => setClienteNome(e.target.value)}
-                  placeholder="Ex.: Sérgio Braz"
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                />
-              </div>
+            <form onSubmit={handleCriarPacote} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Cliente (nome livre)
+                  </label>
+                  <input
+                    type="text"
+                    value={clienteNome}
+                    onChange={(e) => setClienteNome(e.target.value)}
+                    placeholder="Ex.: Sérgio Braz"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
-                  Profissional responsável *
-                </label>
-                <select
-                  value={profissionalId}
-                  onChange={(e) => setProfissionalId(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                  required
-                >
-                  <option value="">
-                    {profissionais?.length
-                      ? "Selecione um profissional"
-                      : "Nenhum profissional cadastrado"}
-                  </option>
-                  {profissionais?.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome}
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Profissional responsável *
+                  </label>
+                  <select
+                    value={profissionalId}
+                    onChange={(e) => setProfissionalId(e.target.value)}
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
+                    required
+                  >
+                    <option value="">
+                      {profissionais?.length
+                        ? "Selecione um profissional"
+                        : "Nenhum profissional cadastrado"}
                     </option>
-                  ))}
-                </select>
+                    {profissionais?.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                     Preço mensal (R$)
                   </label>
                   <input
@@ -509,62 +557,62 @@ export function AdminPacotes({
                     step="0.01"
                     value={precoMensal}
                     onChange={(e) => setPrecoMensal(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
                     placeholder="Ex.: 120.00"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Dia de vencimento
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    step="1"
+                    value={diaVencimento}
+                    onChange={(e) => setDiaVencimento(e.target.value)}
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
+                    placeholder="Ex.: 5"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                     Cobrança ativa
                   </label>
-                  <label className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1">
+                  <label className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2.5 text-sm text-[var(--text-app)]">
                     <input
                       type="checkbox"
                       checked={cobrancaAtiva}
                       onChange={(e) => setCobrancaAtiva(e.target.checked)}
-                      className="rounded border-slate-600 bg-slate-800"
+                      className="rounded"
                     />
-                    <span className="text-xs text-slate-200">Sim</span>
+                    Sim
                   </label>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
-                  Dia de vencimento (opcional)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  step="1"
-                  value={diaVencimento}
-                  onChange={(e) => setDiaVencimento(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                  placeholder="Ex.: 5"
-                />
-              </div>
-
-              <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 space-y-3">
-                <div>
-                  <h3 className="text-slate-100 font-medium text-xs">
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-bold text-[var(--text-app)]">
                     Horários recorrentes do pacote
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Adicione 1 ou mais dias/horários para esse mesmo pacote.
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                    Você pode adicionar 1 ou vários horários para o mesmo pacote semanal.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-400">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="flex flex-col">
+                    <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                       Dia da semana
                     </label>
                     <select
                       value={diaSemana}
                       onChange={(e) => setDiaSemana(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                     >
                       <option value="0">Domingo</option>
                       <option value="1">Segunda</option>
@@ -576,128 +624,132 @@ export function AdminPacotes({
                     </select>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-400">
+                  <div className="flex flex-col">
+                    <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                       Horário início
                     </label>
                     <input
                       type="time"
                       value={horaInicio}
                       onChange={(e) => setHoraInicio(e.target.value)}
-                      className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                      Duração (minutos)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={duracaoMin}
+                      onChange={(e) => setDuracaoMin(e.target.value)}
+                      className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
-                    Duração (minutos)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={duracaoMin}
-                    onChange={(e) => setDuracaoMin(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
-                  />
-                </div>
-
-                <div>
+                <div className="mt-4 flex justify-start">
                   <button
                     type="button"
                     onClick={handleAdicionarHorario}
-                    className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-sky-500/60 text-sky-200 hover:bg-sky-900/30 transition"
+                    className="inline-flex items-center justify-center rounded-xl border border-sky-500/60 bg-sky-500/10 px-4 py-2.5 text-sm font-medium text-sky-600 transition hover:bg-sky-500/15"
                   >
                     Adicionar horário
                   </button>
                 </div>
 
-                {horariosPacote.length > 0 ? (
-                  <ul className="space-y-2">
-                    {sortHorarios(horariosPacote).map((h, idx) => (
-                      <li
-                        key={`${h.dia_semana}-${h.hora_inicio}-${h.duracao_minutos}-${idx}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2"
-                      >
-                        <div className="text-[11px] text-slate-200">
-                          {labelDiaSemana(h.dia_semana)} • {String(h.hora_inicio).slice(0, 5)} ({h.duracao_minutos} min)
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoverHorario(idx)}
-                          className="text-[11px] px-2 py-1 rounded-lg border border-rose-500/60 text-rose-300 hover:bg-rose-900/30 transition"
+                <div className="mt-4">
+                  {horariosPacote.length > 0 ? (
+                    <ul className="space-y-2">
+                      {sortHorarios(horariosPacote).map((h, idx) => (
+                        <li
+                          key={`${h.dia_semana}-${h.hora_inicio}-${h.duracao_minutos}-${idx}`}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-3"
                         >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-[11px] text-slate-500">
-                    Nenhum horário adicionado ainda.
-                  </div>
-                )}
+                          <div className="text-sm text-[var(--text-app)]">
+                            <span className="font-medium">{labelDiaSemana(h.dia_semana)}</span>{" "}
+                            • {String(h.hora_inicio).slice(0, 5)} • {h.duracao_minutos} min
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoverHorario(idx)}
+                            className="rounded-xl border border-rose-500/60 px-3 py-1.5 text-[11px] font-medium text-rose-600 transition hover:bg-rose-500/10"
+                          >
+                            Remover
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">
+                      Nenhum horário adicionado ainda.
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                     Vigência início *
                   </label>
                   <input
                     type="date"
                     value={vigenciaInicio}
                     onChange={(e) => setVigenciaInicio(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
                     required
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">
+                <div className="flex flex-col">
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                     Vigência fim (opcional)
                   </label>
                   <input
                     type="date"
                     value={vigenciaFim}
                     onChange={(e) => setVigenciaFim(e.target.value)}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
+              <div className="flex flex-col">
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                   Observações (opcional)
                 </label>
                 <textarea
                   rows={3}
                   value={observacoes}
                   onChange={(e) => setObservacoes(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs resize-none"
+                  className="resize-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-violet-500"
                   placeholder="Ex.: Cabelo/Barba"
                 />
               </div>
 
-              <button
-                type="submit"
-                className="mt-2 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-xs font-semibold text-slate-900 transition"
-              >
-                Criar pacote
-              </button>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95"
+                >
+                  Criar pacote
+                </button>
+              </div>
             </form>
-          </section>
+          </SectionCard>
 
-          <section className="bg-slate-900/40 border border-slate-700/60 rounded-2xl p-4 text-xs">
-            <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-              <h2 className="font-semibold text-slate-100">
-                Pacotes cadastrados
-              </h2>
-              <div className="flex items-center gap-2 flex-wrap">
+          <SectionCard
+            title="Pacotes cadastrados"
+            subtitle="Filtre por profissional, visualize cobrança e registre pagamentos mensais."
+            actions={
+              <>
                 <select
                   value={filtroProfissional}
                   onChange={(e) => setFiltroProfissional(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)]"
                 >
                   <option value="">Todos os profissionais</option>
                   {profissionais?.map((p) => (
@@ -707,58 +759,58 @@ export function AdminPacotes({
                   ))}
                 </select>
 
-                <label className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                <label className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2.5 text-sm text-[var(--text-app)]">
                   <input
                     type="checkbox"
                     checked={somenteAtivos}
                     onChange={(e) => setSomenteAtivos(e.target.checked)}
-                    className="rounded border-slate-600 bg-slate-800"
+                    className="rounded"
                   />
                   Somente ativos
                 </label>
 
                 <button
                   onClick={handleAtualizarLista}
-                  className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-panel)]"
                 >
                   Atualizar
                 </button>
-              </div>
-            </div>
-
-            <div className="mb-3 flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] text-slate-500">Forma de pagamento padrão:</span>
+              </>
+            }
+          >
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-[var(--text-muted)]">Forma padrão:</span>
               <select
                 value={formaPagamento}
                 onChange={(e) => setFormaPagamento(e.target.value)}
-                className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs"
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-app)] outline-none transition focus:border-[var(--accent-primary)]"
               >
                 <option value="pix">PIX</option>
                 <option value="dinheiro">Dinheiro</option>
                 <option value="cartao">Cartão</option>
                 <option value="transferencia">Transferência</option>
               </select>
-              <span className="text-[11px] text-slate-500">
-                Competência: {competenciaMesAtualISO()}
-              </span>
+              <Badge tone="slate">Competência: {competenciaMesAtualISO()}</Badge>
             </div>
 
             {erroPacotes && (
-              <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                 {erroPacotes}
               </div>
             )}
 
             {mensagemErroCriacao ? (
-              <div className="bg-red-900/40 border border-red-700 text-red-100 text-xs px-3 py-2 rounded-lg mb-3">
+              <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
                 {mensagemErroCriacao}
               </div>
             ) : null}
 
             {loadingPacotes ? (
-              <p className="text-slate-400 text-xs">Carregando pacotes...</p>
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Carregando pacotes...
+              </div>
             ) : pacotes && pacotes.length > 0 ? (
-              <ul className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+              <ul className="space-y-3">
                 {pacotes.map((p) => {
                   const horarios = sortHorarios(
                     Array.isArray(p.horarios) && p.horarios.length > 0
@@ -775,186 +827,194 @@ export function AdminPacotes({
                   return (
                     <li
                       key={p.id}
-                      className="bg-slate-800/70 border border-slate-700 rounded-xl px-3 py-2"
+                      className="overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-soft)]"
                     >
-                      <div className="flex justify-between items-start gap-3">
-                        <div>
-                          <div className="font-semibold text-slate-100 text-[13px]">
-                            {p.cliente_nome || "Cliente não informado"}
-                          </div>
+                      <div className="flex h-full">
+                        <div className={`w-1.5 shrink-0 ${p.ativo ? "bg-emerald-500" : "bg-slate-400"}`} />
+                        <div className="flex-1 p-4">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <Badge tone={p.ativo ? "emerald" : "slate"}>
+                                  {p.ativo ? "Ativo" : "Inativo"}
+                                </Badge>
 
-                          <div className="text-slate-400 text-[11px] mt-1">
-                            Profissional: {p.profissional?.nome || profMap.get(p.profissional_id)?.nome || p.profissional_id}
-                          </div>
+                                <Badge tone="sky">
+                                  Preço: {formatBRL(p.preco_mensal ?? 0)}
+                                </Badge>
 
-                          <div className="text-slate-500 text-[11px] mt-1">
-                            Vigência: {formatarData(p.vigencia_inicio)}{" "}
-                            {p.vigencia_fim ? `até ${formatarData(p.vigencia_fim)}` : "em aberto"}
-                          </div>
+                                <Badge tone={p.cobranca_ativa ? "emerald" : "slate"}>
+                                  Cobrança: {p.cobranca_ativa ? "Ativa" : "Pausada"}
+                                </Badge>
 
-                          <div className="mt-2 space-y-1">
-                            {horarios.map((h, idx) => (
-                              <div
-                                key={`${p.id}-${h.id || idx}-${h.dia_semana}-${h.hora_inicio}`}
-                                className="text-slate-300 text-[11px]"
-                              >
-                                • {labelDiaSemana(h.dia_semana)} • {String(h.hora_inicio || "").slice(0, 5)} ({h.duracao_minutos} min)
+                                {p.dia_vencimento ? (
+                                  <Badge tone="amber">Venc.: dia {p.dia_vencimento}</Badge>
+                                ) : null}
                               </div>
-                            ))}
-                          </div>
 
-                          <div className="text-slate-300 text-[11px] mt-2 flex items-center gap-2 flex-wrap">
-                            <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
-                              Preço: <b>{formatBRL(p.preco_mensal ?? 0)}</b>
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full border ${
-                                p.cobranca_ativa
-                                  ? "border-emerald-500/60 text-emerald-300 bg-emerald-500/10"
-                                  : "border-slate-600 text-slate-300 bg-slate-900/40"
-                              }`}
-                            >
-                              Cobrança: <b>{p.cobranca_ativa ? "Ativa" : "Pausada"}</b>
-                            </span>
-                            {p.dia_vencimento ? (
-                              <span className="px-2 py-0.5 rounded-full border border-slate-600 bg-slate-900/40">
-                                Venc.: <b>dia {p.dia_vencimento}</b>
-                              </span>
-                            ) : null}
-                          </div>
+                              <h3 className="text-base font-bold text-[var(--text-app)]">
+                                {p.cliente_nome || "Cliente não informado"}
+                              </h3>
 
-                          {p.observacoes && (
-                            <div className="text-slate-500 text-[11px] mt-1">
-                              Obs.: {p.observacoes}
+                              <div className="mt-2 grid gap-2 text-[12px] text-[var(--text-muted)] sm:grid-cols-2">
+                                <div>
+                                  <span className="font-semibold text-[var(--text-app)]">Profissional:</span>{" "}
+                                  {p.profissional?.nome ||
+                                    profMap.get(p.profissional_id)?.nome ||
+                                    p.profissional_id}
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-[var(--text-app)]">Vigência:</span>{" "}
+                                  {formatarData(p.vigencia_inicio)}{" "}
+                                  {p.vigencia_fim ? `até ${formatarData(p.vigencia_fim)}` : "em aberto"}
+                                </div>
+                              </div>
+
+                              <div className="mt-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-3">
+                                <div className="mb-2 text-[11px] font-medium text-[var(--text-muted)]">
+                                  Horários do pacote
+                                </div>
+                                <div className="space-y-1.5">
+                                  {horarios.map((h, idx) => (
+                                    <div
+                                      key={`${p.id}-${h.id || idx}-${h.dia_semana}-${h.hora_inicio}`}
+                                      className="text-sm text-[var(--text-app)]"
+                                    >
+                                      • {labelDiaSemana(h.dia_semana)} • {String(h.hora_inicio || "").slice(0, 5)} ({h.duracao_minutos} min)
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {p.observacoes && (
+                                <div className="mt-3 text-[12px] text-[var(--text-muted)]">
+                                  <span className="font-semibold text-[var(--text-app)]">Obs.:</span> {p.observacoes}
+                                </div>
+                              )}
+
+                              {editandoPrecoId === p.id ? (
+                                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={novoPreco}
+                                    onChange={(e) => setNovoPreco(e.target.value)}
+                                    className="w-[160px] rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
+                                    placeholder="Ex.: 120.00"
+                                  />
+                                  <button
+                                    onClick={() => salvarPreco(p)}
+                                    disabled={salvandoAcaoId === p.id}
+                                    className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-500/15 disabled:opacity-60"
+                                  >
+                                    {salvandoAcaoId === p.id ? "Salvando..." : "Salvar"}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditandoPrecoId("");
+                                      setNovoPreco("");
+                                    }}
+                                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
-                          )}
 
-                          {editandoPrecoId === p.id ? (
-                            <div className="mt-3 flex items-center gap-2 flex-wrap">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={novoPreco}
-                                onChange={(e) => setNovoPreco(e.target.value)}
-                                className="bg-slate-900/60 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-xs w-[140px]"
-                                placeholder="Ex.: 120.00"
-                              />
-                              <button
-                                onClick={() => salvarPreco(p)}
-                                disabled={salvandoAcaoId === p.id}
-                                className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/30 transition disabled:opacity-60"
-                              >
-                                {salvandoAcaoId === p.id ? "Salvando..." : "Salvar"}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditandoPrecoId("");
-                                  setNovoPreco("");
-                                }}
-                                className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
-                              >
-                                Cancelar
-                              </button>
+                            <div className="flex min-w-[240px] flex-col items-start gap-2 lg:items-end">
+                              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                                <button
+                                  onClick={() => abrirEdicaoPreco(p)}
+                                  className="rounded-xl border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-[11px] font-medium text-sky-600 transition hover:bg-sky-500/15"
+                                >
+                                  Editar preço
+                                </button>
+
+                                <button
+                                  onClick={() => registrarPagamentoDoMes(p)}
+                                  disabled={salvandoAcaoId === p.id}
+                                  className="rounded-xl border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-[11px] font-medium text-amber-700 transition hover:bg-amber-500/15 disabled:opacity-60"
+                                >
+                                  {salvandoAcaoId === p.id ? "Registrando..." : "Registrar pagamento"}
+                                </button>
+
+                                <button
+                                  onClick={() => togglePagamentos(p)}
+                                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-app)]"
+                                >
+                                  {pagamentosAbertosId === p.id ? "Ocultar pagamentos" : "Ver pagamentos"}
+                                </button>
+                              </div>
+
+                              {p.ativo ? (
+                                <button
+                                  onClick={() => handleDesativar(p.id)}
+                                  disabled={salvandoAcaoId === p.id}
+                                  className="rounded-xl border border-rose-500/60 bg-rose-500/10 px-3 py-2 text-[11px] font-medium text-rose-600 transition hover:bg-rose-500/15 disabled:opacity-60"
+                                >
+                                  Desativar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleAtivar(p.id)}
+                                  disabled={salvandoAcaoId === p.id}
+                                  className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-500/15 disabled:opacity-60"
+                                >
+                                  Ativar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {pagamentosAbertosId === p.id ? (
+                            <div className="mt-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-4">
+                              <div className="mb-3 text-sm font-bold text-[var(--text-app)]">
+                                Últimos pagamentos
+                              </div>
+
+                              {erroPagamentos ? (
+                                <div className="mb-3 text-sm text-rose-600">{erroPagamentos}</div>
+                              ) : null}
+
+                              {loadingPagamentos ? (
+                                <div className="text-sm text-[var(--text-muted)]">Carregando pagamentos...</div>
+                              ) : pagamentos?.length ? (
+                                <ul className="space-y-2">
+                                  {pagamentos.map((pg) => (
+                                    <li
+                                      key={pg.id}
+                                      className="flex flex-col gap-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                    >
+                                      <span className="text-sm text-[var(--text-app)]">
+                                        {formatarData(pg.competencia)} • {formatBRL(pg.valor)} • {pg.forma_pagamento || "—"}
+                                      </span>
+                                      <span className="text-[11px] text-[var(--text-muted)]">
+                                        {pg.pago_em ? new Date(pg.pago_em).toLocaleString("pt-BR") : "—"}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-sm text-[var(--text-muted)]">
+                                  Nenhum pagamento registrado.
+                                </div>
+                              )}
                             </div>
                           ) : null}
-                        </div>
-
-                        <div className="text-right flex flex-col items-end gap-2">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              p.ativo
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/60"
-                                : "bg-slate-700/60 text-slate-300 border border-slate-600"
-                            }`}
-                          >
-                            {p.ativo ? "Ativo" : "Inativo"}
-                          </span>
-
-                          <div className="flex items-center gap-2 flex-wrap justify-end">
-                            <button
-                              onClick={() => abrirEdicaoPreco(p)}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-sky-500/60 text-sky-200 hover:bg-sky-900/30 transition"
-                            >
-                              Editar preço
-                            </button>
-
-                            <button
-                              onClick={() => registrarPagamentoDoMes(p)}
-                              disabled={salvandoAcaoId === p.id}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-amber-500/60 text-amber-200 hover:bg-amber-900/30 transition disabled:opacity-60"
-                            >
-                              {salvandoAcaoId === p.id ? "Registrando..." : "Registrar pagamento"}
-                            </button>
-
-                            <button
-                              onClick={() => togglePagamentos(p)}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-900/40 transition"
-                            >
-                              {pagamentosAbertosId === p.id ? "Ocultar pagamentos" : "Ver pagamentos"}
-                            </button>
-                          </div>
-
-                          {p.ativo ? (
-                            <button
-                              onClick={() => handleDesativar(p.id)}
-                              disabled={salvandoAcaoId === p.id}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-rose-500/60 text-rose-300 hover:bg-rose-900/40 transition disabled:opacity-60"
-                            >
-                              Desativar
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleAtivar(p.id)}
-                              disabled={salvandoAcaoId === p.id}
-                              className="text-[11px] px-2 py-1 rounded-lg border border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/40 transition disabled:opacity-60"
-                            >
-                              Ativar
-                            </button>
-                          )}
                         </div>
                       </div>
-
-                      {pagamentosAbertosId === p.id ? (
-                        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                          <div className="text-[11px] text-slate-400 mb-2">
-                            Últimos pagamentos
-                          </div>
-
-                          {erroPagamentos ? (
-                            <div className="text-[11px] text-rose-200">{erroPagamentos}</div>
-                          ) : null}
-
-                          {loadingPagamentos ? (
-                            <div className="text-[11px] text-slate-500">Carregando pagamentos...</div>
-                          ) : pagamentos?.length ? (
-                            <ul className="space-y-2 text-[11px]">
-                              {pagamentos.map((pg) => (
-                                <li key={pg.id} className="flex items-center justify-between gap-2">
-                                  <span className="text-slate-200">
-                                    {formatarData(pg.competencia)} • {formatBRL(pg.valor)} • {pg.forma_pagamento || "—"}
-                                  </span>
-                                  <span className="text-slate-500">
-                                    {pg.pago_em ? new Date(pg.pago_em).toLocaleString("pt-BR") : "—"}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-[11px] text-slate-500">Nenhum pagamento registrado.</div>
-                          )}
-                        </div>
-                      ) : null}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-slate-500 text-xs">
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
                 Nenhum pacote cadastrado com esses filtros.
-              </p>
+              </div>
             )}
-          </section>
+          </SectionCard>
         </div>
       </div>
     </div>

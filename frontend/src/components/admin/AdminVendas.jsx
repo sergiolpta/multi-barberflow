@@ -4,6 +4,40 @@ import { useAdminProdutos } from "../../hooks/useAdminProdutos";
 import { useAdminVendas } from "../../hooks/useAdminVendas";
 import { useAdminProfissionais } from "../../hooks/useAdminProfissionais";
 
+function Badge({ tone = "slate", children }) {
+  const map = {
+    slate:
+      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
+    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionCard({ title, subtitle, actions, children }) {
+  return (
+    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
+        </div>
+        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function AdminVendas({
   accessToken,
   adminRole,
@@ -52,6 +86,16 @@ export function AdminVendas({
   const produtoSelecionado = useMemo(
     () => ativos.find((p) => p.id === produtoId),
     [ativos, produtoId]
+  );
+
+  const profissionalSelecionado = useMemo(
+    () => profAtivos.find((p) => p.id === profissionalId),
+    [profAtivos, profissionalId]
+  );
+
+  const totalItens = useMemo(
+    () => itens.reduce((acc, i) => acc + Number(i.quantidade || 0), 0),
+    [itens]
   );
 
   function addItem() {
@@ -156,37 +200,41 @@ export function AdminVendas({
   const loadingGeral = loadingProd || loadingVendas || loadingProf;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 px-4 py-6">
-      <div className="w-full max-w-5xl mx-auto space-y-6">
-        <header className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+    <div className="min-h-screen bg-[var(--bg-app)] px-4 py-8 text-[var(--text-app)] md:py-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-8 overflow-hidden rounded-[28px] border border-[var(--border-color)] bg-[var(--bg-panel)] shadow-[var(--shadow-panel)] backdrop-blur-xl">
+          <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-sky-500 to-amber-500" />
+          <div className="flex flex-col gap-6 p-5 md:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
               {barbeariaLogoUrl ? (
-                <img
-                  src={barbeariaLogoUrl}
-                  alt={barbeariaNome || "Logo da barbearia"}
-                  className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-900/60"
-                />
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-white/60 bg-white/95 p-3 shadow-xl shadow-black/10">
+                  <img
+                    src={barbeariaLogoUrl}
+                    alt={barbeariaNome || "Logo da barbearia"}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
               ) : (
-                <div className="w-14 h-14 rounded-xl border border-slate-700 bg-slate-900/60 flex items-center justify-center text-slate-500 text-[10px] text-center px-1">
-                  Sem logo
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-500/10 text-3xl">
+                  🛒
                 </div>
               )}
 
               <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                  Painel administrativo
-                </p>
-                <h1 className="text-xl md:text-2xl font-bold text-slate-50 truncate">
+                <div className="mb-2 inline-flex items-center rounded-full border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-1 text-[11px] font-medium text-[var(--text-muted)]">
+                  PDV e vendas rápidas
+                </div>
+
+                <h1 className="text-2xl font-bold tracking-tight text-[var(--text-app)] md:text-3xl">
                   {barbeariaNome || "Barbearia"}
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">Vendas (Balcão)</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Registre venda rápida, dê baixa no estoque e grave comissão por profissional.
+
+                <p className="mt-2 text-sm text-[var(--text-muted)] md:text-[15px]">
+                  Registre vendas de balcão, dê baixa no estoque e grave comissão por profissional.
                 </p>
 
                 {!podeVender && (
-                  <p className="text-[11px] text-slate-500 mt-2">
+                  <p className="mt-2 text-[12px] text-[var(--text-soft)]">
                     Seu perfil pode visualizar, mas não pode registrar vendas.
                   </p>
                 )}
@@ -195,7 +243,7 @@ export function AdminVendas({
 
             <button
               onClick={onVoltar}
-              className="shrink-0 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+              className="inline-flex items-center justify-center rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
             >
               Voltar ao painel
             </button>
@@ -203,21 +251,22 @@ export function AdminVendas({
         </header>
 
         {msg ? (
-          <div className="rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-3 text-xs text-slate-200">
+          <div className="mb-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-3 text-sm text-[var(--text-app)]">
             {msg}
           </div>
         ) : null}
 
         {erroGeral ? (
-          <div className="rounded-xl border border-red-700 bg-red-900/30 px-4 py-3 text-xs text-red-100">
+          <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
             {erroGeral}
           </div>
         ) : null}
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <section className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-slate-50">PDV</h2>
+        <div className="grid gap-6 xl:grid-cols-[1.02fr_1.98fr]">
+          <SectionCard
+            title="PDV"
+            subtitle="Monte a venda, selecione o profissional comissionado e finalize a operação."
+            actions={
               <button
                 onClick={async () => {
                   await Promise.all([
@@ -226,21 +275,27 @@ export function AdminVendas({
                     recarregarProfissionais(),
                   ]);
                 }}
-                className="text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
               >
                 Atualizar
               </button>
-            </div>
+            }
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge tone="sky">{ativos.length} produtos ativos</Badge>
+                <Badge tone="emerald">{profAtivos.length} profissionais ativos</Badge>
+                <Badge tone="amber">{totalItens} item(ns) no carrinho</Badge>
+              </div>
 
-            <div className="mt-3 grid gap-2 text-xs">
               <div className="flex flex-col">
-                <span className="text-[11px] text-slate-400 mb-1">
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
                   Profissional (comissionado)
-                </span>
+                </label>
                 <select
                   value={profissionalId}
                   onChange={(e) => setProfissionalId(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-3 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                 >
                   <option value="">Selecione</option>
                   {(profAtivos || []).map((p) => (
@@ -249,14 +304,24 @@ export function AdminVendas({
                     </option>
                   ))}
                 </select>
+                {profissionalSelecionado ? (
+                  <div className="mt-2 text-[12px] text-[var(--text-muted)]">
+                    Comissão PDV atual:{" "}
+                    <span className="font-semibold text-[var(--text-app)]">
+                      {Number(profissionalSelecionado.comissao_pdv_pct || 0).toFixed(2)}%
+                    </span>
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex flex-col">
-                <span className="text-[11px] text-slate-400 mb-1">Produto</span>
+                <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                  Produto
+                </label>
                 <select
                   value={produtoId}
                   onChange={(e) => setProdutoId(e.target.value)}
-                  className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100"
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-3 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                 >
                   <option value="">Selecione</option>
                   {(ativos || []).map((p) => (
@@ -267,16 +332,18 @@ export function AdminVendas({
                 </select>
               </div>
 
-              <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+              <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
                 <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-400 mb-1">Quantidade</span>
+                  <label className="mb-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                    Quantidade
+                  </label>
                   <input
                     type="number"
                     min="1"
                     step="1"
                     value={qtd}
                     onChange={(e) => setQtd(Number(e.target.value))}
-                    className="bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-2 text-slate-100"
+                    className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-3 text-sm text-[var(--text-app)] outline-none transition focus:border-emerald-500"
                   />
                 </div>
 
@@ -284,27 +351,37 @@ export function AdminVendas({
                   type="button"
                   onClick={addItem}
                   disabled={!podeVender}
-                  className="h-[38px] px-3 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 transition disabled:opacity-60"
+                  className="h-[48px] rounded-xl border border-sky-500/60 bg-sky-500/10 px-4 text-sm font-medium text-sky-600 transition hover:bg-sky-500/15 disabled:opacity-60"
                 >
                   Adicionar
                 </button>
               </div>
 
-              <div className="mt-3 rounded-xl border border-slate-700 bg-slate-900/40 p-3">
-                <div className="text-[11px] text-slate-400 mb-2">Itens</div>
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-bold text-[var(--text-app)]">Carrinho</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      Itens preparados para a venda atual.
+                    </div>
+                  </div>
+                  <Badge tone="amber">{totalItens} item(ns)</Badge>
+                </div>
+
                 {itens.length ? (
                   <ul className="space-y-2">
                     {itens.map((i) => (
                       <li
                         key={i.produto_id}
-                        className="flex items-center justify-between text-xs"
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-3"
                       >
-                        <span className="text-slate-200">
-                          {i.nome} <span className="text-slate-500">x</span> {i.quantidade}
+                        <span className="text-sm text-[var(--text-app)]">
+                          <span className="font-medium">{i.nome}</span>{" "}
+                          <span className="text-[var(--text-muted)]">x</span> {i.quantidade}
                         </span>
                         <button
                           onClick={() => removerItem(i.produto_id)}
-                          className="px-2 py-1 rounded-lg border border-rose-600 text-rose-200 text-[10px] hover:bg-rose-600/10 transition"
+                          className="rounded-xl border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-[11px] font-medium text-rose-600 transition hover:bg-rose-500/15"
                         >
                           Remover
                         </button>
@@ -312,75 +389,108 @@ export function AdminVendas({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-slate-500">Nenhum item adicionado.</p>
+                  <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                    Nenhum item adicionado.
+                  </div>
                 )}
               </div>
 
               <button
                 onClick={finalizarVenda}
                 disabled={!podeVender || salvando || !itens.length}
-                className="mt-2 w-full text-xs px-3 py-2 rounded-lg border border-emerald-500 text-emerald-100 hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {salvando ? "Registrando..." : "Finalizar venda"}
               </button>
 
-              {loadingGeral ? <p className="text-xs text-slate-500">Carregando...</p> : null}
+              {loadingGeral ? (
+                <p className="text-[12px] text-[var(--text-muted)]">Carregando dados...</p>
+              ) : null}
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
-            <h2 className="font-semibold text-slate-50">Vendas de hoje</h2>
-
+          <SectionCard
+            title="Vendas de hoje"
+            subtitle="Acompanhe as últimas vendas registradas, lucro e comissão aplicada."
+            actions={
+              <button
+                onClick={recarregar}
+                className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-panel)]"
+              >
+                Atualizar
+              </button>
+            }
+          >
             {loadingVendas ? (
-              <p className="text-sm text-slate-400 mt-3">Carregando vendas...</p>
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Carregando vendas...
+              </div>
             ) : vendas?.length ? (
-              <ul className="mt-3 space-y-2 max-h-[420px] overflow-y-auto pr-1 text-xs">
+              <div className="space-y-3">
                 {vendas.map((v) => (
-                  <li
+                  <div
                     key={v.id}
-                    className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-2"
+                    className="overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-panel-strong)] shadow-[var(--shadow-soft)]"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-200 font-semibold">
-                        Total: R$ {Number(v.total || 0).toFixed(2)}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        {new Date(v.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
+                    <div className="flex h-full">
+                      <div className="w-1.5 shrink-0 bg-emerald-500" />
+                      <div className="flex-1 p-4">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge tone="emerald">
+                                Total: R$ {Number(v.total || 0).toFixed(2)}
+                              </Badge>
 
-                    <div className="text-[11px] text-slate-400 mt-1">
-                      {typeof v.lucro_total !== "undefined" ? (
-                        <>
-                          Lucro: R$ {Number(v.lucro_total || 0).toFixed(2)} • Comissão: R${" "}
-                          {Number(v.comissao_valor || 0).toFixed(2)} (
-                          {Number(v.comissao_pct_aplicada || 0).toFixed(0)}%)
-                        </>
-                      ) : null}
-                    </div>
+                              {typeof v.lucro_total !== "undefined" ? (
+                                <Badge tone="sky">
+                                  Lucro: R$ {Number(v.lucro_total || 0).toFixed(2)}
+                                </Badge>
+                              ) : null}
 
-                    {Array.isArray(v.itens) && v.itens.length ? (
-                      <div className="text-[11px] text-slate-400 mt-1">
-                        {v.itens.map((i) => `${i.nome} x${i.quantidade}`).join(" • ")}
+                              {typeof v.comissao_valor !== "undefined" ? (
+                                <Badge tone="amber">
+                                  Comissão: R$ {Number(v.comissao_valor || 0).toFixed(2)}
+                                </Badge>
+                              ) : null}
+                            </div>
+
+                            <div className="text-sm text-[var(--text-app)]">
+                              {Array.isArray(v.itens) && v.itens.length
+                                ? v.itens.map((i) => `${i.nome} x${i.quantidade}`).join(" • ")
+                                : "Venda sem detalhamento de itens"}
+                            </div>
+
+                            <div className="mt-2 text-[12px] text-[var(--text-muted)]">
+                              {typeof v.lucro_total !== "undefined" ? (
+                                <>
+                                  Percentual aplicado:{" "}
+                                  <span className="font-semibold text-[var(--text-app)]">
+                                    {Number(v.comissao_pct_aplicada || 0).toFixed(0)}%
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="text-[12px] text-[var(--text-muted)]">
+                            {new Date(v.created_at).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    ) : null}
-                  </li>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-sm text-slate-400 mt-3">Nenhuma venda hoje.</p>
+              <div className="rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                Nenhuma venda hoje.
+              </div>
             )}
-
-            <button
-              onClick={recarregar}
-              className="mt-3 text-xs px-3 py-1 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 transition"
-            >
-              Atualizar
-            </button>
-          </section>
+          </SectionCard>
         </div>
       </div>
     </div>
