@@ -10,7 +10,7 @@ export async function listarVendas(req, res) {
     let vendasQuery = supabase
       .from("vendas")
       .select(
-        "id, total, lucro_total, comissao_pct_aplicada, comissao_valor, profissional_id, created_at, comissao_calculada_em"
+        "id, total, lucro_total, comissao_pct_aplicada, comissao_valor, profissional_id, created_at, comissao_calculada_em, venda_itens(venda_id, quantidade, produto:produtos(nome))"
       )
       .eq("barbearia_id", barbeariaId)
       .order("created_at", { ascending: false })
@@ -30,32 +30,17 @@ export async function listarVendas(req, res) {
       return res.status(500).json({ error: "ERRO_VENDAS", message: vendasErr.message });
     }
 
-    const ids = (vendas || []).map((v) => v.id);
-
-    let itensMap = {};
-    if (ids.length) {
-      const { data: itens, error: itensErr } = await supabase
-        .from("venda_itens")
-        .select("venda_id, quantidade, produto:produtos(nome)")
-        .in("venda_id", ids);
-
-      if (itensErr) {
-        console.error("Erro Supabase GET /vendas itens:", itensErr);
-        return res.status(500).json({ error: "ERRO_VENDAS", message: itensErr.message });
-      }
-
-      itensMap = (itens || []).reduce((acc, it) => {
-        acc[it.venda_id] = acc[it.venda_id] || [];
-        acc[it.venda_id].push({
-          nome: it.produto?.nome ?? "(produto)",
-          quantidade: it.quantidade,
-        });
-        return acc;
-      }, {});
-    }
-
     return res.json({
-      vendas: (vendas || []).map((v) => ({ ...v, itens: itensMap[v.id] || [] })),
+      vendas: (vendas || []).map((v) => {
+        const { venda_itens, ...rest } = v;
+        return {
+          ...rest,
+          itens: (venda_itens || []).map((it) => ({
+            nome: it.produto?.nome ?? "(produto)",
+            quantidade: it.quantidade,
+          })),
+        };
+      }),
     });
   } catch (err) {
     console.error("Erro GET /vendas:", err);

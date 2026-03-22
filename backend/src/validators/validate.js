@@ -12,7 +12,7 @@ export function validate(schema) {
       return res.status(400).json({
         error: "VALIDACAO",
         message: "Dados inválidos",
-        issues: result.error.issues.map((i) => ({
+        details: result.error.issues.map((i) => ({
           path: i.path.join("."),
           message: i.message,
         })),

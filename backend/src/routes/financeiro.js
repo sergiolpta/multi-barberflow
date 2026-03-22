@@ -24,6 +24,9 @@ import {
   // ✅ NOVO: listar fechamentos / buscar por data
   listarFechamentosCtrl,
   obterFechamentoPorDataCtrl,
+
+  // ✅ PRÉVIA DETALHADA POR PROFISSIONAL
+  obterDetalhesPreviaProfissionalCtrl,
 } from "../controllers/financeiro.controller.js";
 
 const router = express.Router();
@@ -35,6 +38,7 @@ router.use(authAdminMiddleware);
 
 // ✅ Prévia — owner-only
 router.get("/previa", requireRole(["admin_owner"]), obterPreviaPeriodoCtrl);
+router.get("/previa/profissional", requireRole(["admin_owner"]), obterDetalhesPreviaProfissionalCtrl);
 
 // ✅ Fechamentos: listagem/busca (owner + staff)
 router.use(requireRole(["admin_owner", "admin_staff"]));

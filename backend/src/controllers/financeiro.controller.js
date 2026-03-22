@@ -15,6 +15,9 @@ import {
   assertPeriodoNaoTravadoPorFechamentoConfirmado,
   listarFechamentos,
   obterFechamentoQueCobreData,
+
+  // ✅ PRÉVIA DETALHADA POR PROFISSIONAL
+  obterDetalhesPreviaProfissional,
 } from "../services/financeiro.service.js";
 
 /**
@@ -713,3 +716,28 @@ export async function deletarDespesaCtrl(req, res) {
   }
 }
 
+
+/**
+ * GET /financeiro/previa/profissional?profissional_id=X&data_inicio=Y&data_fim=Z
+ * Retorna itens detalhados (serviços, PDV, pacotes) de um profissional no período.
+ */
+export async function obterDetalhesPreviaProfissionalCtrl(req, res) {
+  try {
+    const barbeariaId = req.barbeariaId;
+    const profissionalId = String(req.query?.profissional_id || "").trim();
+    const dataInicio = String(req.query?.data_inicio || "").trim();
+    const dataFim = String(req.query?.data_fim || "").trim();
+
+    if (!profissionalId) {
+      return res.status(400).json({ error: "VALIDACAO", message: "profissional_id é obrigatório." });
+    }
+    if (!dataInicio || !dataFim) {
+      return res.status(400).json({ error: "VALIDACAO", message: "data_inicio e data_fim são obrigatórios." });
+    }
+
+    const detalhes = await obterDetalhesPreviaProfissional({ barbeariaId, profissionalId, dataInicio, dataFim });
+    return res.json(detalhes);
+  } catch (err) {
+    return res.status(500).json({ error: "ERRO_DETALHES_PREVIA", message: String(err?.message || err) });
+  }
+}

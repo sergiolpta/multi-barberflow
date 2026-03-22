@@ -1,40 +1,8 @@
 // src/components/admin/AdminServicos.jsx
 import { useState, useMemo } from "react";
 import { useAdminServicos } from "../../hooks/useAdminServicos";
-
-function Badge({ tone = "slate", children }) {
-  const map = {
-    slate:
-      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
-    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
-    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
-    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function SectionCard({ title, subtitle, actions, children }) {
-  return (
-    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
-        </div>
-        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
+import { Badge } from "../common/Badge";
+import { SectionCard } from "../common/SectionCard";
 
 export function AdminServicos({
   accessToken,

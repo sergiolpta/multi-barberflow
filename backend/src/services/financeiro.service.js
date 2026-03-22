@@ -1,12 +1,13 @@
 // backend/src/services/financeiro.service.js
 import { supabase } from "../lib/supabase.js";
 import { calcularComissaoPacote, calcularComissaoServico } from "./comissoes.service.js";
+import { config } from "../config/index.js";
 
 /**
- * Fechamento por DIA LOCAL (-03:00)
+ * Fechamento por DIA LOCAL (configurável via LOCAL_OFFSET, padrão -03:00)
  * (para campos timestamp/timestamptz como created_at e pago_em)
  */
-const LOCAL_OFFSET = "-03:00";
+const LOCAL_OFFSET = config.business.localOffset;
 
 function toISOStartLocal(dataYYYYMMDD) {
   return `${dataYYYYMMDD}T00:00:00.000${LOCAL_OFFSET}`;
@@ -910,4 +911,139 @@ export async function listarFechamentos({ barbeariaId, inicio = "", fim = "", li
   if (error) throw new Error(`Erro ao listar fechamentos: ${error.message}`);
 
   return data || [];
+}
+/**
+ * Retorna itens detalhados (serviços, PDV, pacotes) de um profissional no período.
+ * Usado para gerar o PDF de prévia detalhado por profissional.
+ */
+export async function obterDetalhesPreviaProfissional({ barbeariaId, profissionalId, dataInicio, dataFim }) {
+  const inicioTs = toISOStartLocal(dataInicio);
+  const fimTs = toISOEndLocal(dataFim);
+
+  // --- SERVIÇOS (agendamentos confirmados) ---
+  const { data: agendsRaw, error: agErr } = await supabase
+    .from("agendamentos")
+    .select(`
+      id,
+      data,
+      preco_aplicado,
+      comissao_pct_aplicada,
+      comissao_valor,
+      servico:servicos(nome, preco)
+    `)
+    .eq("barbearia_id", barbeariaId)
+    .eq("profissional_id", profissionalId)
+    .eq("status", "confirmado")
+    .gte("data", dataInicio)
+    .lte("data", dataFim)
+    .order("data", { ascending: true });
+
+  if (agErr) throw new Error(`Erro ao buscar serviços: ${agErr.message}`);
+
+  const servicos = (agendsRaw || []).map((a) => {
+    const preco = Number(a.preco_aplicado ?? 0) || Number(a?.servico?.preco ?? 0);
+    return {
+      id: a.id,
+      data: String(a.data || "").slice(0, 10),
+      servico_nome: a?.servico?.nome || "—",
+      preco: round2(preco),
+      comissao_pct: Number(a.comissao_pct_aplicada ?? 0),
+      comissao_valor: round2(Number(a.comissao_valor ?? 0)),
+    };
+  });
+
+  // --- VENDAS PDV ---
+  const { data: vendasRaw, error: vendasErr } = await supabase
+    .from("vendas")
+    .select("id, total, lucro_total, comissao_valor, comissao_pct_aplicada, created_at, agendamento_id")
+    .eq("barbearia_id", barbeariaId)
+    .eq("profissional_id", profissionalId)
+    .gte("created_at", inicioTs)
+    .lte("created_at", fimTs)
+    .order("created_at", { ascending: true });
+
+  if (vendasErr) throw new Error(`Erro ao buscar vendas: ${vendasErr.message}`);
+
+  const vendaIds = (vendasRaw || []).map((v) => v.id);
+  const vendaItensMap = new Map();
+
+  if (vendaIds.length > 0) {
+    const { data: itens, error: itensErr } = await supabase
+      .from("venda_itens")
+      .select(`
+        venda_id,
+        quantidade,
+        item_tipo,
+        subtotal,
+        produto_id,
+        servico_id,
+        produto:produtos(nome),
+        servico:servicos(nome)
+      `)
+      .in("venda_id", vendaIds);
+
+    if (itensErr) throw new Error(`Erro ao buscar itens de venda: ${itensErr.message}`);
+
+    for (const it of itens || []) {
+      if (!vendaItensMap.has(it.venda_id)) vendaItensMap.set(it.venda_id, []);
+      vendaItensMap.get(it.venda_id).push({
+        nome: it?.produto?.nome || it?.servico?.nome || "—",
+        tipo: String(it.item_tipo || "produto"),
+        quantidade: Number(it.quantidade ?? 1),
+        subtotal: round2(Number(it.subtotal ?? 0)),
+      });
+    }
+  }
+
+  // Classifica: venda PDV = tem produto OU não tem agendamento
+  const pdv = (vendasRaw || [])
+    .filter((v) => {
+      const itens = vendaItensMap.get(v.id) || [];
+      const temProduto = itens.some((i) => i.tipo === "produto");
+      const temAgendamento = v.agendamento_id != null;
+      // Extra de serviço (vinculado a agendamento, sem produto) → não é PDV
+      const ehExtraServico = temAgendamento && !temProduto;
+      return !ehExtraServico;
+    })
+    .map((v) => ({
+      id: v.id,
+      data: String(v.created_at || "").slice(0, 10),
+      total: round2(Number(v.total ?? 0)),
+      lucro_total: round2(Number(v.lucro_total ?? 0)),
+      comissao_valor: round2(Number(v.comissao_valor ?? 0)),
+      itens: vendaItensMap.get(v.id) || [],
+    }));
+
+  // --- PACOTES ---
+  const { data: pacotesRaw, error: pacErr } = await supabase
+    .from("pacote_pagamentos")
+    .select(`
+      id,
+      valor,
+      competencia,
+      pago_em,
+      comissao_pct_aplicada,
+      comissao_valor,
+      pacote:pacotes(profissional_id, cliente_nome)
+    `)
+    .eq("barbearia_id", barbeariaId)
+    .gte("pago_em", inicioTs)
+    .lte("pago_em", fimTs)
+    .order("pago_em", { ascending: true });
+
+  if (pacErr) throw new Error(`Erro ao buscar pacotes: ${pacErr.message}`);
+
+  const pacotes = (pacotesRaw || [])
+    .filter((p) => p?.pacote?.profissional_id === profissionalId)
+    .map((p) => ({
+      id: p.id,
+      competencia: p.competencia || "—",
+      pago_em: String(p.pago_em || "").slice(0, 10),
+      cliente_nome: p?.pacote?.cliente_nome || "—",
+      valor: round2(Number(p.valor ?? 0)),
+      comissao_pct: Number(p.comissao_pct_aplicada ?? 0),
+      comissao_valor: round2(Number(p.comissao_valor ?? 0)),
+    }));
+
+  return { servicos, pdv, pacotes };
 }

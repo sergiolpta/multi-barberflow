@@ -18,6 +18,8 @@ export function useAdminAuth() {
   // evita race condition no /me
   const reqSeq = useRef(0);
   const mountedRef = useRef(true);
+  // bloqueia novas chamadas ao /me após 401 — só é resetado no login explícito
+  const sessionInvalidRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -45,7 +47,7 @@ export function useAdminAuth() {
   const carregarPerfilAdmin = useCallback(
     async (token) => {
       const tokenUsado = token;
-      if (!tokenUsado) return;
+      if (!tokenUsado || sessionInvalidRef.current) return;
 
       const mySeq = ++reqSeq.current;
 
@@ -74,72 +76,61 @@ export function useAdminAuth() {
         const msg = String(err?.message || "").toLowerCase();
 
         if (status === 401 || status === 403 || msg.includes("unauthorized")) {
+          // Bloqueia qualquer nova chamada ao /me — só é liberado no login explícito
+          sessionInvalidRef.current = true;
           limparSessaoLocal();
+          // Limpa a sessão no Supabase (best-effort) para não acumular no localStorage
+          try {
+            await supabase.auth.signOut();
+          } catch (_) {
+            // ignora
+          }
+          // Não exibe erro — o app vai para a tela de login silenciosamente
         } else {
           limparPerfil();
+          if (!mountedRef.current) return;
+          setErro(err?.message || "Não foi possível carregar perfil admin (/me).");
         }
-
-        if (!mountedRef.current) return;
-        setErro(err?.message || "Não foi possível carregar perfil admin (/me).");
       }
     },
     [limparSessaoLocal, limparPerfil]
   );
 
   useEffect(() => {
-    async function loadSession() {
-      if (!mountedRef.current) return;
+    let active = true;
 
-      setLoading(true);
-      setErro("");
+    setLoading(true);
+    setErro("");
 
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error("Erro ao obter sessão Supabase:", error);
-        if (mountedRef.current) setErro("Erro ao verificar sessão.");
-      }
-
-      if (session) {
-        if (!mountedRef.current) return;
-        setUser(session.user);
-        setAccessToken(session.access_token);
-
-        await carregarPerfilAdmin(session.access_token);
-      } else {
-        limparSessaoLocal();
-      }
-
-      if (mountedRef.current) setLoading(false);
-    }
-
-    loadSession();
-
+    // onAuthStateChange emite INITIAL_SESSION imediatamente ao se inscrever,
+    // dispensando a chamada manual a getSession().
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        if (!mountedRef.current) return;
+      if (!active) return;
 
+      if (session) {
         setUser(session.user);
         setAccessToken(session.access_token);
-
         await carregarPerfilAdmin(session.access_token);
+        if (active) setLoading(false);
       } else {
         limparSessaoLocal();
+        if (active) setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [carregarPerfilAdmin, limparSessaoLocal]);
 
   async function login(email, password) {
     try {
       setLoading(true);
       setErro("");
+      sessionInvalidRef.current = false; // libera chamadas ao /me para o novo login
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,

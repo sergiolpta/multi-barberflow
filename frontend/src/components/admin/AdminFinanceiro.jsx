@@ -2,14 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAdminFinanceiro } from "../../hooks/useAdminFinanceiro";
 import { apiFetch } from "../../config/api";
+import { Badge } from "../common/Badge";
+import { formatBRL as fmtBRL } from "../../utils/formatters";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-function fmtBRL(v) {
-  const n = Number(v ?? 0);
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function toInputDateBR(d) {
   if (!d) return "";
@@ -33,26 +30,6 @@ function firstDayOfMonth(date) {
 
 function lastDayOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function Badge({ tone = "slate", children }) {
-  const map = {
-    slate:
-      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
-    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
-    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
-    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
-    red: "border-red-500/30 bg-red-500/10 text-red-600",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
-    >
-      {children}
-    </span>
-  );
 }
 
 function Tabs({ value, onChange, items }) {
@@ -260,6 +237,7 @@ async function exportPreviaPDF({
   titulo,
   kpis,
   tabelaRows,
+  detalhes, // { servicos, pdv, pacotes } — presente quando profissional específico selecionado
 }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const geradoEm = new Date().toLocaleString("pt-BR");
@@ -293,6 +271,95 @@ async function exportPreviaPDF({
     headStyles: { fontSize: 8 },
     margin: { left: 40, right: 40 },
   });
+
+  // --- Detalhes por categoria (somente quando profissional específico selecionado) ---
+  if (detalhes) {
+    const afterTable = doc.lastAutoTable?.finalY ?? (kStartY + 120);
+
+    // SERVIÇOS
+    doc.setFontSize(11);
+    doc.text("Serviços realizados", 40, afterTable + 24);
+
+    const servicosRows = (detalhes.servicos || []).map((s) => [
+      s.data,
+      s.servico_nome,
+      fmtBRL(s.preco),
+      `${Number(s.comissao_pct || 0).toFixed(1)}%`,
+      fmtBRL(s.comissao_valor),
+    ]);
+
+    if (servicosRows.length === 0) {
+      doc.setFontSize(8);
+      doc.text("Nenhum serviço no período.", 40, afterTable + 40);
+    } else {
+      autoTable(doc, {
+        startY: afterTable + 36,
+        head: [["Data", "Serviço", "Preço", "Comissão %", "Comissão R$"]],
+        body: servicosRows,
+        styles: { fontSize: 8 },
+        headStyles: { fontSize: 8 },
+        margin: { left: 40, right: 40 },
+      });
+    }
+
+    const afterServicos = doc.lastAutoTable?.finalY ?? (afterTable + 60);
+
+    // PDV
+    doc.setFontSize(11);
+    doc.text("Vendas PDV", 40, afterServicos + 24);
+
+    const pdvRows = [];
+    for (const v of detalhes.pdv || []) {
+      const itensDesc = (v.itens || [])
+        .map((i) => `${i.nome} x${i.quantidade}`)
+        .join(", ") || "—";
+      pdvRows.push([v.data, itensDesc, fmtBRL(v.total), fmtBRL(v.lucro_total), fmtBRL(v.comissao_valor)]);
+    }
+
+    if (pdvRows.length === 0) {
+      doc.setFontSize(8);
+      doc.text("Nenhuma venda PDV no período.", 40, afterServicos + 40);
+    } else {
+      autoTable(doc, {
+        startY: afterServicos + 36,
+        head: [["Data", "Itens", "Total", "Lucro", "Comissão R$"]],
+        body: pdvRows,
+        styles: { fontSize: 8 },
+        headStyles: { fontSize: 8 },
+        columnStyles: { 1: { cellWidth: 200 } },
+        margin: { left: 40, right: 40 },
+      });
+    }
+
+    const afterPdv = doc.lastAutoTable?.finalY ?? (afterServicos + 60);
+
+    // PACOTES
+    doc.setFontSize(11);
+    doc.text("Pacotes", 40, afterPdv + 24);
+
+    const pacotesRows = (detalhes.pacotes || []).map((p) => [
+      p.pago_em,
+      p.competencia,
+      p.cliente_nome,
+      fmtBRL(p.valor),
+      `${Number(p.comissao_pct || 0).toFixed(1)}%`,
+      fmtBRL(p.comissao_valor),
+    ]);
+
+    if (pacotesRows.length === 0) {
+      doc.setFontSize(8);
+      doc.text("Nenhum pacote no período.", 40, afterPdv + 40);
+    } else {
+      autoTable(doc, {
+        startY: afterPdv + 36,
+        head: [["Pago em", "Competência", "Cliente", "Valor", "Comissão %", "Comissão R$"]],
+        body: pacotesRows,
+        styles: { fontSize: 8 },
+        headStyles: { fontSize: 8 },
+        margin: { left: 40, right: 40 },
+      });
+    }
+  }
 
   const safe = String(titulo || "previa").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24) || "previa";
   doc.save(`previa-${safe}.pdf`);
@@ -1040,6 +1107,19 @@ export function AdminFinanceiro({
                         ];
                       });
 
+                      // Busca detalhes individuais quando profissional específico selecionado
+                      let detalhes = null;
+                      if (previaProfId) {
+                        try {
+                          detalhes = await apiFetch(
+                            `/financeiro/previa/profissional?profissional_id=${previaProfId}&data_inicio=${periodoInicio}&data_fim=${periodoFim}`,
+                            { accessToken, method: "GET" }
+                          );
+                        } catch (err) {
+                          console.error("Erro ao buscar detalhes do profissional:", err);
+                        }
+                      }
+
                       await exportPreviaPDF({
                         barbeariaId,
                         barbeariaNome,
@@ -1049,6 +1129,7 @@ export function AdminFinanceiro({
                         titulo,
                         kpis,
                         tabelaRows: rows,
+                        detalhes,
                       });
                     }}
                     className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"

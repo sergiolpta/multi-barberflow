@@ -60,6 +60,7 @@ const corsOptions = {
     "Pragma",
     "If-None-Match",
     "If-Modified-Since",
+    "x-barbearia-id",
   ],
   exposedHeaders: ["ETag"],
   optionsSuccessStatus: 204,
@@ -74,15 +75,28 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 /* ---------------- Internal platform routes ---------------- */
 /* IMPORTANTE: precisa vir depois do parser JSON */
+const limiterPlatform = rateLimit({
+  windowMs: config.rateLimit.windowMs,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDev,
+  message: { error: "RATE_LIMIT", message: "Muitas requisições. Tente novamente mais tarde." },
+});
+// Aplica o limiter apenas no prefixo /internal/platform, não em todas as rotas
+app.use("/internal/platform", limiterPlatform);
 app.use(internalPlatformRoutes);
 
 /* ---------------- Rate limiting ---------------- */
+const isDev = config.env !== "production";
+
 function makeLimiter(max) {
   return rateLimit({
     windowMs: config.rateLimit.windowMs,
     max,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => isDev,
   });
 }
 

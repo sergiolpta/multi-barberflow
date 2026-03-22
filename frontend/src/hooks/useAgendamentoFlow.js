@@ -50,38 +50,12 @@ export function useAgendamentoFlow() {
     return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
   }
 
-  // 1) Carregar profissionais e serviços ao montar
-  useEffect(() => {
-    async function loadInitialData() {
-      setError("");
-
-      
-
-      try {
-        setLoadingProfissionais(true);
-        const profData = await apiFetch(`/profissionais`, { method: "GET" });
-        setProfissionais(Array.isArray(profData) ? profData : []);
-      } catch (err) {
-        console.error(err);
-        setError(err?.message || "Erro ao carregar profissionais.");
-      } finally {
-        setLoadingProfissionais(false);
-      }
-
-      try {
-        setLoadingServicos(true);
-        const servData = await apiFetch(`/servicos`, { method: "GET" });
-        setServicos(Array.isArray(servData) ? servData : []);
-      } catch (err) {
-        console.error(err);
-        setError((prev) => prev || err?.message || "Erro ao carregar serviços.");
-      } finally {
-        setLoadingServicos(false);
-      }
-    }
-
-    loadInitialData();
-  }, []);
+  // DESATIVADO — fluxo público inativo no momento.
+  // Quando reativado, descomentar este useEffect para carregar dados ao montar.
+  // useEffect(() => {
+  //   async function loadInitialData() { ... }
+  //   loadInitialData();
+  // }, []);
 
   // 2) Buscar horários
   async function buscarHorarios() {

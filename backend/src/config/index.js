@@ -71,6 +71,10 @@ export const config = Object.freeze({
       "SUPABASE_SECRET_KEY",
       process.env.SUPABASE_SECRET_KEY
     ),
+    // Opcional: JWT Secret do painel Supabase (Settings → API → JWT Secret).
+    // Usado para verificar tokens HS256 emitidos pelo browser.
+    // Se não configurado, usa apenas getUser() do client admin (funciona para ES256).
+    jwtSecret: optional("SUPABASE_JWT_SECRET", process.env.SUPABASE_JWT_SECRET, ""),
   },
 
   cors: {
@@ -94,6 +98,19 @@ export const config = Object.freeze({
       "ENABLE_DEBUG_ROUTES",
       process.env.ENABLE_DEBUG_ROUTES,
       env !== "production"
+    ),
+  },
+
+  business: {
+    timeZone: optional("BUSINESS_TIME_ZONE", process.env.BUSINESS_TIME_ZONE, "America/Sao_Paulo"),
+    localOffset: optional("LOCAL_OFFSET", process.env.LOCAL_OFFSET, "-03:00"),
+    janelaInicioMin: toPositiveInt("JANELA_INICIO_MIN", process.env.JANELA_INICIO_MIN, 9 * 60),
+    janelaFimMin: toPositiveInt("JANELA_FIM_MIN", process.env.JANELA_FIM_MIN, 21 * 60),
+    slotGranularityMin: toPositiveInt("SLOT_GRANULARITY_MIN", process.env.SLOT_GRANULARITY_MIN, 30),
+    adminRetroToleranceMinutes: toPositiveInt(
+      "ADMIN_RETRO_TOLERANCE_MINUTES",
+      process.env.ADMIN_RETRO_TOLERANCE_MINUTES,
+      30
     ),
   },
 });

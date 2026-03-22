@@ -1,16 +1,7 @@
 import { supabase } from "../lib/supabase.js";
 import { calcularComissaoPacote } from "../services/comissoes.service.js";
-
-function getBarbeariaId(req) {
-  return String(req?.user?.barbearia_id || "").trim() || null;
-}
-
-function respondBarbeariaAusente(res) {
-  return res.status(401).json({
-    error: "USUARIO_SEM_BARBEARIA",
-    message: "Usuário autenticado sem barbearia vinculada.",
-  });
-}
+import { getBarbeariaId, respondBarbeariaAusente } from "../utils/controllerHelpers.js";
+import { parseDateOnly, normalizeHora } from "../utils/datetime.js";
 
 function parseDiaSemana(value) {
   const n = Number(value);
@@ -18,29 +9,10 @@ function parseDiaSemana(value) {
   return n;
 }
 
-function normalizeHoraInicio(value) {
-  const s = String(value || "").trim();
-  if (!s) return null;
-
-  // aceita HH:MM ou HH:MM:SS
-  if (/^\d{2}:\d{2}$/.test(s)) return `${s}:00`;
-  if (/^\d{2}:\d{2}:\d{2}$/.test(s)) return s;
-
-  return null;
-}
-
 function parseDuracao(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
-}
-
-function parseDateOnly(value) {
-  const s = String(value || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  const d = new Date(`${s}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return s;
 }
 
 function sortHorarios(horarios) {
@@ -96,7 +68,7 @@ function normalizeHorariosInput(horarios) {
       };
     }
 
-    const horaInicio = normalizeHoraInicio(item.hora_inicio);
+    const horaInicio = normalizeHora(item.hora_inicio);
     if (!horaInicio) {
       return {
         ok: false,

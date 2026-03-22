@@ -1,6 +1,8 @@
 // src/components/admin/AdminProdutos.jsx
 import { useMemo, useState } from "react";
 import { useAdminProdutos } from "../../hooks/useAdminProdutos";
+import { Badge } from "../common/Badge";
+import { SectionCard } from "../common/SectionCard";
 
 function MoneyInput({ value, onChange }) {
   return (
@@ -12,40 +14,6 @@ function MoneyInput({ value, onChange }) {
       onChange={(e) => onChange(e.target.value)}
       className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none transition focus:border-sky-500"
     />
-  );
-}
-
-function Badge({ tone = "slate", children }) {
-  const map = {
-    slate:
-      "border-[var(--border-color)] bg-[var(--bg-panel-strong)] text-[var(--text-muted)]",
-    sky: "border-sky-500/30 bg-sky-500/10 text-sky-600",
-    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-700",
-    rose: "border-rose-500/30 bg-rose-500/10 text-rose-600",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold ${map[tone] || map.slate}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function SectionCard({ title, subtitle, actions, children }) {
-  return (
-    <section className="rounded-[26px] border border-[var(--border-color)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-panel)] backdrop-blur-xl md:p-5">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-app)]">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p> : null}
-        </div>
-        {actions ? <div className="flex items-center gap-2 flex-wrap">{actions}</div> : null}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -72,6 +40,9 @@ export function AdminProdutos({
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState("");
   const [search, setSearch] = useState("");
+
+  const [modalEstoque, setModalEstoque] = useState(null); // { produto, valor }
+  const [modalPrecos, setModalPrecos] = useState(null);   // { produto, custo, venda }
 
   const produtosFiltrados = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
@@ -136,59 +107,48 @@ export function AdminProdutos({
     }
   }
 
-  async function handleAjustarEstoque(p) {
+  function handleAjustarEstoque(p) {
     if (!podeGerir) return;
+    setModalEstoque({ produto: p, valor: String(p.estoque_qtd ?? 0) });
+  }
 
-    const novo = window.prompt(
-      `Ajustar estoque de "${p.nome}". Informe o novo estoque (inteiro >= 0):`,
-      String(p.estoque_qtd ?? 0)
-    );
-    if (novo == null) return;
-
-    const n = Number(novo);
+  async function confirmarAjusteEstoque(e) {
+    e.preventDefault();
+    const n = Number(modalEstoque.valor);
     if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-      alert("Estoque inválido. Use um inteiro >= 0.");
+      setMsg("Estoque inválido. Use um inteiro >= 0.");
       return;
     }
-
     try {
       setMsg("");
-      await atualizarProduto(p.id, { estoque_qtd: n });
+      await atualizarProduto(modalEstoque.produto.id, { estoque_qtd: n });
+      setModalEstoque(null);
       await recarregar();
-    } catch (e) {
-      setMsg(e?.message || "Erro ao ajustar estoque.");
+    } catch (e2) {
+      setMsg(e2?.message || "Erro ao ajustar estoque.");
     }
   }
 
-  async function handleEditarPrecos(p) {
+  function handleEditarPrecos(p) {
     if (!podeGerir) return;
+    setModalPrecos({ produto: p, custo: String(p.preco_custo ?? 0), venda: String(p.preco_venda ?? 0) });
+  }
 
-    const custo = window.prompt(
-      `Preço de custo (R$) de "${p.nome}":`,
-      String(p.preco_custo ?? 0)
-    );
-    if (custo == null) return;
-
-    const venda = window.prompt(
-      `Preço de venda (R$) de "${p.nome}":`,
-      String(p.preco_venda ?? 0)
-    );
-    if (venda == null) return;
-
-    const pc = Number(custo);
-    const pv = Number(venda);
-
+  async function confirmarEdicaoPrecos(e) {
+    e.preventDefault();
+    const pc = Number(modalPrecos.custo);
+    const pv = Number(modalPrecos.venda);
     if (!Number.isFinite(pc) || pc < 0 || !Number.isFinite(pv) || pv < 0) {
-      alert("Preços inválidos. Use números >= 0.");
+      setMsg("Preços inválidos. Use números >= 0.");
       return;
     }
-
     try {
       setMsg("");
-      await atualizarProduto(p.id, { preco_custo: pc, preco_venda: pv });
+      await atualizarProduto(modalPrecos.produto.id, { preco_custo: pc, preco_venda: pv });
+      setModalPrecos(null);
       await recarregar();
-    } catch (e) {
-      setMsg(e?.message || "Erro ao editar preços.");
+    } catch (e2) {
+      setMsg(e2?.message || "Erro ao editar preços.");
     }
   }
 
@@ -430,6 +390,93 @@ export function AdminProdutos({
           </SectionCard>
         </div>
       </div>
+
+      {/* Modal: Ajustar Estoque */}
+      {modalEstoque && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <form
+            onSubmit={confirmarAjusteEstoque}
+            className="w-full max-w-sm rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-6 shadow-xl"
+          >
+            <h3 className="mb-4 text-base font-bold text-[var(--text-app)]">
+              Ajustar estoque — {modalEstoque.produto.nome}
+            </h3>
+            <label className="mb-1 block text-sm text-[var(--text-muted)]">Novo estoque (inteiro ≥ 0)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={modalEstoque.valor}
+              onChange={(e) => setModalEstoque((s) => ({ ...s, valor: e.target.value }))}
+              className="mb-4 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none focus:border-sky-500"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalEstoque(null)}
+                className="rounded-xl border border-[var(--border-color)] px-4 py-2 text-sm text-[var(--text-muted)] transition hover:bg-[var(--bg-panel-strong)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600"
+              >
+                Salvar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal: Editar Preços */}
+      {modalPrecos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <form
+            onSubmit={confirmarEdicaoPrecos}
+            className="w-full max-w-sm rounded-2xl border border-[var(--border-color)] bg-[var(--bg-panel)] p-6 shadow-xl"
+          >
+            <h3 className="mb-4 text-base font-bold text-[var(--text-app)]">
+              Editar preços — {modalPrecos.produto.nome}
+            </h3>
+            <label className="mb-1 block text-sm text-[var(--text-muted)]">Preço de custo (R$)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={modalPrecos.custo}
+              onChange={(e) => setModalPrecos((s) => ({ ...s, custo: e.target.value }))}
+              className="mb-3 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none focus:border-sky-500"
+              autoFocus
+            />
+            <label className="mb-1 block text-sm text-[var(--text-muted)]">Preço de venda (R$)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={modalPrecos.venda}
+              onChange={(e) => setModalPrecos((s) => ({ ...s, venda: e.target.value }))}
+              className="mb-4 w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-app)] outline-none focus:border-sky-500"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalPrecos(null)}
+                className="rounded-xl border border-[var(--border-color)] px-4 py-2 text-sm text-[var(--text-muted)] transition hover:bg-[var(--bg-panel-strong)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600"
+              >
+                Salvar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

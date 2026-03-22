@@ -1,16 +1,6 @@
 // backend/src/controllers/servicos.controller.js
 import { supabase } from "../lib/supabase.js";
-
-function getBarbeariaId(req) {
-  return String(req?.user?.barbearia_id || "").trim() || null;
-}
-
-function respondBarbeariaAusente(res) {
-  return res.status(401).json({
-    error: "USUARIO_SEM_BARBEARIA",
-    message: "Usuário autenticado sem barbearia vinculada.",
-  });
-}
+import { getBarbeariaId, respondBarbeariaAusente } from "../utils/controllerHelpers.js";
 
 // ---------------------------------------------------------------------
 // GET /servicos  → lista serviços ativos da barbearia do usuário

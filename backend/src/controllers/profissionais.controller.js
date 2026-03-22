@@ -1,16 +1,6 @@
 // backend/src/controllers/profissionais.controller.js
 import { supabase } from "../lib/supabase.js";
-
-function getBarbeariaIdFromUser(req) {
-  return String(req?.user?.barbearia_id || "").trim() || null;
-}
-
-function respondBarbeariaAusente(res) {
-  return res.status(401).json({
-    error: "USUARIO_SEM_BARBEARIA",
-    message: "Barbearia não identificada no contexto da requisição autenticada.",
-  });
-}
+import { getBarbeariaId as getBarbeariaIdFromUser, respondBarbeariaAusente } from "../utils/controllerHelpers.js";
 
 /** ---------------------------------------------------------------------
  * GET /profissionais  → público/autenticado conforme rota – só profissionais ativos

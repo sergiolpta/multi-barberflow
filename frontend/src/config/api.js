@@ -12,6 +12,8 @@ export const API_BASE_URL = isProd
     ? "https://api-hml.nexushomelp.tec.br"
     : "http://localhost:3001";
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 /**
  * apiFetch:
  * - injeta Authorization
@@ -19,8 +21,9 @@ export const API_BASE_URL = isProd
  * - parse seguro do body
  * - tratamento de 204 (retorna null)
  * - evita 304/ETag em endpoints sensíveis
+ * - timeout de 15s por padrão (configurável via options.timeoutMs)
  */
-export async function apiFetch(path, { accessToken, ...options } = {}) {
+export async function apiFetch(path, { accessToken, timeoutMs = DEFAULT_TIMEOUT_MS, ...options } = {}) {
   const headers = new Headers(options.headers || {});
 
   if (accessToken) {
@@ -38,11 +41,27 @@ export async function apiFetch(path, { accessToken, ...options } = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-    cache: "no-store",
-  });
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(timerId);
+    if (fetchErr.name === "AbortError") {
+      const err = new Error(`Tempo limite de ${timeoutMs / 1000}s esgotado. Verifique sua conexão.`);
+      err.status = 408;
+      throw err;
+    }
+    throw fetchErr;
+  }
+  clearTimeout(timerId);
 
   if (res.status === 204) {
     if (!res.ok) {
