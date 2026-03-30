@@ -3,13 +3,24 @@ import express from "express";
 import {
   lookupCliente,
   searchClientes,
+  listarClientes,
+  criarCliente,
+  atualizarCliente,
 } from "../controllers/clientes.controller.js";
 import { authAdminMiddleware } from "../middlewares/authAdmin.js";
 import { requireRole } from "../middlewares/requireRole.js";
 
 const router = express.Router();
 
-// GET /clientes/search?q=...&limit=10 → ADMIN (owner/staff/barber)
+// GET /clientes?q=...&limit=50&offset=0 → owner/staff/barber
+router.get(
+  "/",
+  authAdminMiddleware,
+  requireRole(["admin_owner", "admin_staff", "barber"]),
+  listarClientes
+);
+
+// GET /clientes/search?q=...&limit=10 → owner/staff/barber
 router.get(
   "/search",
   authAdminMiddleware,
@@ -17,7 +28,23 @@ router.get(
   searchClientes
 );
 
-// POST /clientes/lookup → ADMIN (owner/staff/barber)
+// POST /clientes → owner/staff
+router.post(
+  "/",
+  authAdminMiddleware,
+  requireRole(["admin_owner", "admin_staff"]),
+  criarCliente
+);
+
+// PUT /clientes/:id → owner/staff
+router.put(
+  "/:id",
+  authAdminMiddleware,
+  requireRole(["admin_owner", "admin_staff"]),
+  atualizarCliente
+);
+
+// POST /clientes/lookup → owner/staff/barber
 router.post(
   "/lookup",
   authAdminMiddleware,

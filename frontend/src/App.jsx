@@ -8,6 +8,8 @@ import { AdminPacotes } from "./components/admin/AdminPacotes";
 import { AdminFinanceiro } from "./components/admin/AdminFinanceiro";
 import { AdminProdutos } from "./components/admin/AdminProdutos";
 import { AdminVendas } from "./components/admin/AdminVendas";
+import { AdminClientes } from "./components/admin/AdminClientes";
+import { AdminPendencias } from "./components/admin/AdminPendencias";
 import { apiFetch } from "./config/api";
 
 const THEME_STORAGE_KEY = "barberflow_admin_theme";
@@ -339,6 +341,22 @@ export default function App() {
               onClick={() => setModoAdmin("pacotes")}
             />
 
+            <HomeCard
+              title="Clientes"
+              description="Cadastre e gerencie a base de clientes da barbearia."
+              accent="violet"
+              onClick={() => setModoAdmin("clientes")}
+            />
+
+            {podeProdutosEVendas && (
+              <HomeCard
+                title="Pendências"
+                description="Agendamentos realizados com pagamento ainda não recebido."
+                accent="amber"
+                onClick={() => setModoAdmin("pendencias")}
+              />
+            )}
+
             {podeProdutosEVendas && (
               <HomeCard
                 title="Produtos"
@@ -442,6 +460,30 @@ export default function App() {
   if (modoAdmin === "profissionais") {
     return (
       <AdminProfissionais
+        accessToken={accessToken}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
+        adminRole={adminRole}
+        onVoltar={() => setModoAdmin("adminHome")}
+      />
+    );
+  }
+
+  if (modoAdmin === "pendencias") {
+    return (
+      <AdminPendencias
+        accessToken={accessToken}
+        barbeariaNome={adminBarbeariaNome || undefined}
+        barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}
+        adminRole={adminRole}
+        onVoltar={() => setModoAdmin("adminHome")}
+      />
+    );
+  }
+
+  if (modoAdmin === "clientes") {
+    return (
+      <AdminClientes
         accessToken={accessToken}
         barbeariaNome={adminBarbeariaNome || undefined}
         barbeariaLogoUrl={adminBarbeariaLogoUrl || undefined}

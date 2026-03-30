@@ -225,6 +225,7 @@ export function AdminAgenda({
   const [novoServicoId, setNovoServicoId] = useState("");
   const [novoData, setNovoData] = useState(hoje);
   const [novoHora, setNovoHora] = useState("");
+  const [novoPago, setNovoPago] = useState(true);
 
   const [clienteQuery, setClienteQuery] = useState("");
   const [clienteSugestoes, setClienteSugestoes] = useState([]);
@@ -274,6 +275,7 @@ export function AdminAgenda({
     setNovoServicoId("");
     setNovoData(dataAgenda || hoje);
     setNovoHora("");
+    setNovoPago(true);
 
     setClienteQuery("");
     setClienteSugestoes([]);
@@ -515,6 +517,7 @@ export function AdminAgenda({
         cliente_nome: nomeTrim,
         cliente_whatsapp: whatsNorm,
         ...(clienteNascimento ? { cliente_nascimento: clienteNascimento } : {}),
+        pago: novoPago,
       };
 
       await apiFetch("/agendamentos", {
@@ -653,6 +656,16 @@ export function AdminAgenda({
 
   function removerExtra(idx) {
     setExtras((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleReceberPagamento(ag) {
+    if (!podeGerirAgenda) return;
+    try {
+      await apiFetch(`/agendamentos/${ag.id}/pagar`, { accessToken, method: "PATCH" });
+      recarregarAgenda();
+    } catch (err) {
+      alert(err?.message || "Erro ao registrar pagamento.");
+    }
   }
 
   async function handleCancelar(ag) {
@@ -1083,8 +1096,22 @@ export function AdminAgenda({
                                 </div>
                               )}
 
+                              {ag.pago === false && (
+                                <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+                                  Pendente
+                                </span>
+                              )}
+
                               {podeGerirAgenda && (
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
+                                  {ag.pago === false && (
+                                    <button
+                                      onClick={() => handleReceberPagamento(ag)}
+                                      className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-500/15"
+                                    >
+                                      Receber
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handleEditar(ag)}
                                     className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] px-3 py-2 text-[11px] font-medium text-[var(--text-app)] transition hover:bg-[var(--bg-app)]"
@@ -1093,12 +1120,7 @@ export function AdminAgenda({
                                   </button>
                                   <button
                                     onClick={() => handleCancelar(ag)}
-                                    className={[
-                                      "rounded-xl border px-3 py-2 text-[11px] font-medium transition",
-                                      isPacote
-                                        ? "border-rose-500/60 text-rose-600 hover:bg-rose-500/10"
-                                        : "border-rose-500/60 text-rose-600 hover:bg-rose-500/10",
-                                    ].join(" ")}
+                                    className="rounded-xl border border-rose-500/60 px-3 py-2 text-[11px] font-medium text-rose-600 transition hover:bg-rose-500/10"
                                   >
                                     Cancelar
                                   </button>
@@ -1525,6 +1547,16 @@ export function AdminAgenda({
                     </div>
                   ) : null}
                 </div>
+
+                <label className="inline-flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel-strong)] px-3 py-2.5 text-sm text-[var(--text-app)]">
+                  <input
+                    type="checkbox"
+                    checked={novoPago}
+                    onChange={(e) => setNovoPago(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Pagamento recebido
+                </label>
 
                 <div className="flex items-center justify-end gap-2">
                   <button

@@ -262,6 +262,7 @@ export async function fecharPeriodo({ barbeariaId, dataInicio, dataFim }) {
     )
     .eq("barbearia_id", barbeariaId)
     .eq("status", "confirmado")
+    .eq("pago", true)
     .gte("data", dataInicio)
     .lte("data", dataFim);
 
@@ -934,6 +935,7 @@ export async function obterDetalhesPreviaProfissional({ barbeariaId, profissiona
     .eq("barbearia_id", barbeariaId)
     .eq("profissional_id", profissionalId)
     .eq("status", "confirmado")
+    .eq("pago", true)
     .gte("data", dataInicio)
     .lte("data", dataFim)
     .order("data", { ascending: true });

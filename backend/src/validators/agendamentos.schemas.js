@@ -27,6 +27,8 @@ export const criarAgendamentoSchema = z.object({
 
       data: yyyyMmDd,
       hora: hhMm,
+
+      pago: z.boolean().optional(),
     })
     .refine(
       (v) => {

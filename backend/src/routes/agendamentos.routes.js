@@ -8,6 +8,8 @@ import {
   adicionarExtrasAgendamento,
   cancelarOcorrenciaPacote,
   remarcarOcorrenciaPacote,
+  listarPendentes,
+  marcarComoPago,
 } from "../controllers/agendamentos.controller.js";
 import { authAdminMiddleware } from "../middlewares/authAdmin.js";
 import { requireRole } from "../middlewares/requireRole.js";
@@ -38,6 +40,13 @@ const adminWriteAccess = [
 // ===========================
 // ✅ ROTAS ADMIN (PROTEGIDAS)
 // ===========================
+
+// LISTAR pendentes de pagamento (antes de /:id para não colidir)
+router.get(
+  "/pendentes",
+  ...adminReadAccess,
+  listarPendentes
+);
 
 // LISTAR agendamentos (admin)
 router.get(
@@ -77,6 +86,13 @@ router.patch(
   ...adminWriteAccess,
   validate(concluirSchema),
   concluirAgendamento
+);
+
+// MARCAR como pago
+router.patch(
+  "/:id/pagar",
+  ...adminWriteAccess,
+  marcarComoPago
 );
 
 // EXTRAS em agendamento normal (admin)

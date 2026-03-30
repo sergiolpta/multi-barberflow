@@ -583,7 +583,10 @@ export async function criarAgendamento(req, res) {
       servico_id,
       data,
       hora,
+      pago,
     } = req.body || {};
+
+    const pagoFinal = pago !== false;
 
     if (!barbeariaId) {
       return respondBarbeariaAusente(res);
@@ -754,8 +757,10 @@ export async function criarAgendamento(req, res) {
         comissao_pct_aplicada: 0,
         comissao_valor: 0,
         comissao_calculada_em: null,
+        pago: pagoFinal,
+        pago_em: pagoFinal ? new Date().toISOString() : null,
       })
-      .select("id, data, hora_inicio, hora_fim, status, preco_aplicado, comissao_valor")
+      .select("id, data, hora_inicio, hora_fim, status, preco_aplicado, comissao_valor, pago, pago_em")
       .single();
 
     if (insertError) {
@@ -1866,5 +1871,86 @@ export async function concluirAgendamento(req, res) {
       error: "ERRO_INTERNO",
       message: "Erro interno ao concluir agendamento",
     });
+  }
+}
+
+/**
+ * GET /agendamentos/pendentes
+ * Lista agendamentos confirmados com pago = false
+ */
+export async function listarPendentes(req, res) {
+  try {
+    const barbeariaId = getBarbeariaId(req);
+    if (!barbeariaId) return respondBarbeariaAusente(res);
+
+    const { data, error } = await supabaseAdmin
+      .from("agendamentos")
+      .select(
+        "id, data, hora_inicio, hora_fim, preco_aplicado, pago, pago_em, " +
+        "cliente:clientes(id, nome, whatsapp), " +
+        "profissional:profissionais(id, nome), " +
+        "servico:servicos(id, nome)"
+      )
+      .eq("barbearia_id", barbeariaId)
+      .eq("status", "confirmado")
+      .eq("pago", false)
+      .order("data", { ascending: true })
+      .order("hora_inicio", { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: "ERRO_SUPABASE", message: "Erro ao listar pendentes." });
+    }
+
+    return res.status(200).json(data || []);
+  } catch (err) {
+    return res.status(500).json({ error: "ERRO_INTERNO", message: String(err?.message || err) });
+  }
+}
+
+/**
+ * PATCH /agendamentos/:id/pagar
+ * Marca agendamento como pago
+ */
+export async function marcarComoPago(req, res) {
+  try {
+    const barbeariaId = getBarbeariaId(req);
+    if (!barbeariaId) return respondBarbeariaAusente(res);
+
+    const { id } = req.params;
+
+    const { data: ag, error: fetchError } = await supabaseAdmin
+      .from("agendamentos")
+      .select("id, status, pago")
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .single();
+
+    if (fetchError || !ag) {
+      return res.status(404).json({ error: "NAO_ENCONTRADO", message: "Agendamento não encontrado." });
+    }
+
+    if (ag.status !== "confirmado") {
+      return res.status(400).json({ error: "STATUS_INVALIDO", message: "Apenas agendamentos confirmados podem ser marcados como pagos." });
+    }
+
+    if (ag.pago) {
+      return res.status(400).json({ error: "JA_PAGO", message: "Este agendamento já está marcado como pago." });
+    }
+
+    const { data: atualizado, error: updateError } = await supabaseAdmin
+      .from("agendamentos")
+      .update({ pago: true, pago_em: new Date().toISOString() })
+      .eq("id", id)
+      .eq("barbearia_id", barbeariaId)
+      .select("id, data, hora_inicio, hora_fim, status, preco_aplicado, pago, pago_em")
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ error: "ERRO_SUPABASE", message: "Erro ao atualizar pagamento." });
+    }
+
+    return res.status(200).json(atualizado);
+  } catch (err) {
+    return res.status(500).json({ error: "ERRO_INTERNO", message: String(err?.message || err) });
   }
 }
