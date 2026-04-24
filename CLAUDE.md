@@ -85,7 +85,7 @@ React 19 SPA with Tailwind CSS. No router library — view state managed locally
 - `src/utils/formatters.js` — `formatBRL()`, `fmtBRDate()`, `normalizarDataISO()`, `normalizarHoraHHMM()`, `toNumberOrNull()`
 
 **User flow**: Admin-only. The app opens directly to the login screen. After authentication:
-- **`admin_owner`**: Full access (agenda, financeiro, serviços, profissionais, pacotes, produtos, vendas)
+- **`admin_owner`**: Full access (agenda, financeiro, serviços, profissionais, pacotes, produtos, vendas, clientes, pendências)
 - **`admin_staff`**: All panels except financeiro
 
 **Inactive code** (preserved for future public booking feature):
@@ -93,7 +93,7 @@ React 19 SPA with Tailwind CSS. No router library — view state managed locally
 - `src/components/steps/` — Multi-step wizard components (`ClienteStep`, `ProfissionalStep`, `ServicoStep`, `DataHorariosStep`, `Summary`)
 - These files are NOT imported anywhere in the active app
 
-**Admin dashboard panels**: `AdminAgenda`, `AdminFinanceiro`, `AdminProfissionais`, `AdminServicos`, `AdminPacotes`, `AdminProdutos`, `AdminVendas`
+**Admin dashboard panels**: `AdminAgenda`, `AdminFinanceiro`, `AdminProfissionais`, `AdminServicos`, `AdminPacotes`, `AdminProdutos`, `AdminVendas`, `AdminClientes`, `AdminPendencias`
 
 **API base URL logic** (from `src/config/api.js`):
 - `agenda.nexushomelp.tec.br` → `https://api.nexushomelp.tec.br`
@@ -108,6 +108,16 @@ No migration files in repo — schema must be pre-configured in Supabase. Key ta
 - **People**: `profissionais`, `clientes`, `servicos`, `profissional_servico_comissoes`
 - **Financial**: `fechamentos`, `adiantamentos`, `despesas`, `v_financeiro_diario` (view)
 - **Sales**: `vendas`, `venda_itens`, `produtos`
+
+**Schema changes applied (manual, no migration files)**:
+```sql
+-- Pagamento pendente em agendamentos
+ALTER TABLE agendamentos
+  ADD COLUMN pago boolean NOT NULL DEFAULT true,
+  ADD COLUMN pago_em timestamptz;
+```
+
+**Payment flow**: `agendamentos.pago` defaults to `true`. If set to `false` at creation, the appointment is excluded from all financial closing/preview queries (`financeiro.service.js` filters `.eq("pago", true)`). Marked as paid via `PATCH /agendamentos/:id/pagar`.
 
 ## Environment Variables
 
